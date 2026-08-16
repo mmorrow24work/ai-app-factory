@@ -1,0 +1,11 @@
+[
+  { "name": "claude-go", "color": "0E8A16", "description": "Unattended Lane B: claude-code-action implements this issue and opens a PR" },
+  { "name": "model:opus", "color": "5319E7", "description": "Escalate off the Sonnet default to Opus for this issue" },
+  { "name": "lane:interactive", "color": "1D76DB", "description": "Drive this one yourself (Lane A) — excluded from the claude-go auto-trigger" },
+  { "name": "lane:manual", "color": "B60205", "description": "Excluded outright from the unattended pipeline" },
+  { "name": "lane:unattended", "color": "0E8A16", "description": "Explicitly marked as safe for the unattended pipeline (informational alongside claude-go)" },
+  { "name": "bug", "color": "D73A4A", "description": "Something isn't working" },
+  { "name": "enhancement", "color": "A2EEEF", "description": "New feature or request" },
+  { "name": "documentation", "color": "0075CA", "description": "Documentation only" },
+  { "name": "good first issue", "color": "7057FF", "description": "Good for newcomers" }
+]
