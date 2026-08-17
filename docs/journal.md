@@ -19,12 +19,12 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 <!-- VELOCITY_START -->
 | Metric | Value |
 |---|---|
-| Issues with recorded metrics | 7 |
-| Successful runs | 4 |
-| Mean time per issue | 3m 56s |
-| Mean turns per issue | 70 |
-| Mean output tokens per issue | 21,319 |
-| Mean estimated cost per issue | $0.3204 |
+| Issues with recorded metrics | 8 |
+| Successful runs | 5 |
+| Mean time per issue | 4m 02s |
+| Mean turns per issue | 72 |
+| Mean output tokens per issue | 21,665 |
+| Mean estimated cost per issue | $0.3256 |
 <!-- VELOCITY_END -->
 
 ---
@@ -124,3 +124,16 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 - **Output Tokens:** 15614
 - **Estimated Cost:** $0.2345 (notional — see above)
 - **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31991555175
+
+## 2026-08-17 — Issue #10: M3: Claude status widget (status.claude.com) in site header/sidebar
+
+- **Result:** success
+- **PR:** —
+- **Milestone:** M3: Dashboard shell
+- **Model:** claude-sonnet-5
+- **Execution Duration:** 286 seconds
+- **Turns:** 88
+- **Input Tokens:** 268
+- **Output Tokens:** 24088
+- **Estimated Cost:** $0.3621 (notional — see above)
+- **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31991556852
