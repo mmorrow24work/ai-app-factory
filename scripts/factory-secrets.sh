@@ -8,8 +8,14 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 DEFAULT_OWNER="mmorrow24work"
-DEFAULT_ENV_FILE="$HOME/.config/ai-app-factory/.env"
+# Repo-root, not ~/.config: this file's whole job is to seed *other* repos'
+# secrets, but it lives inside this checkout (gitignored, never git-add-able
+# even by an -A) for convenience over a fresh clone in a new location.
+DEFAULT_ENV_FILE="$REPO_ROOT/.env"
 REQUIRED_VARS=(CLAUDE_CODE_OAUTH_TOKEN GH_PAT)
 
 usage() {

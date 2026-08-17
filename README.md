@@ -24,21 +24,18 @@ gh secret set CLAUDE_CODE_OAUTH_TOKEN -R mmorrow24work/ai-app-factory
 gh secret set GH_PAT -R mmorrow24work/ai-app-factory   # fine-grained PAT, see scripts/README.md
 ```
 
-`GH_PAT` needs `contents`, `issues`, `pull-requests`, and `actions` write — a plain `contents: write` `GITHUB_TOKEN` can't create the repos/secrets/milestones this pipeline creates in *other* repos. Note GitHub also withholds `workflow` scope from fine-grained PATs used this way: any change to a `.github/workflows/*.yml` file has to be pushed by a human, not the pipeline — see the `## Known limitations` section below.
+`GH_PAT` here only ever needs to operate on `ai-app-factory` itself — `Contents`, `Issues`, `Pull requests`, `Actions`, `Secrets` (Read and write), scoped to "Only select repositories: `ai-app-factory`". Not `Administration`, not "All repositories": since M6's redesign (see `DESIGN.md`'s "GH_PAT: token strategy"), this repo's own automation never creates or touches another repo — provisioning a new project is a human step, run locally. GitHub also withholds `workflow` scope from fine-grained PATs used this way regardless: any change to a `.github/workflows/*.yml` file has to be pushed by a human, not the pipeline — see the `## Known limitations` section below.
 
 ### 2. The local secrets store (`factory-new.sh` / `factory-secrets.sh`)
 
 ```sh
-mkdir -p ~/.config/ai-app-factory
-chmod 700 ~/.config/ai-app-factory
-cat > ~/.config/ai-app-factory/.env <<'EOF'
-CLAUDE_CODE_OAUTH_TOKEN=   # same token as step 1
-GH_PAT=                    # same PAT as step 1
-EOF
-chmod 600 ~/.config/ai-app-factory/.env
+cp .env.example .env
+# fill in CLAUDE_CODE_OAUTH_TOKEN (same token as step 1) and GH_PAT --
+# see .env.example itself for why this GH_PAT needs different scope
+# than step 1's (Secrets-only, but "All repositories")
 ```
 
-This file is never committed — it lives outside this repo, under your home directory. See `scripts/README.md` for the full CLI reference.
+`.env` is gitignored — lives inside this checkout, but git can never touch it. See `scripts/README.md` for the full CLI reference.
 
 ### 3. Running the site locally
 

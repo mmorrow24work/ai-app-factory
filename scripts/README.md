@@ -50,19 +50,18 @@ Run `scripts/factory-secrets.sh` on the new repo next — a fresh repo has no
 scripts/factory-secrets.sh my-new-tool
 ```
 
-Reads `CLAUDE_CODE_OAUTH_TOKEN` and `GH_PAT` from
-`~/.config/ai-app-factory/.env` and sets them as Actions secrets on
-`mmorrow24work/<repo-name>` (`--owner` to override, `--env-file` to read from
-elsewhere). Errors clearly if the file or either variable is missing —
-it does not prompt or fall back silently, since a wrong secret would fail
-silently later inside a GitHub Actions run instead.
+Reads `CLAUDE_CODE_OAUTH_TOKEN` and `GH_PAT` from `.env` at this repo's root
+and sets them as Actions secrets on `mmorrow24work/<repo-name>` (`--owner` to
+override, `--env-file` to read from elsewhere). Errors clearly if the file or
+either variable is missing — it does not prompt or fall back silently, since
+a wrong secret would fail silently later inside a GitHub Actions run instead.
 
-### `~/.config/ai-app-factory/.env`
+### `.env`
 
-Not created by this script — create it yourself, `chmod 600`, and never
-commit it (it lives outside this repo, under your home directory). Shape:
-
-```sh
-CLAUDE_CODE_OAUTH_TOKEN=   # from `claude setup-token`
-GH_PAT=                    # fine-grained GitHub PAT: contents + actions + secrets write on target repos
-```
+Copy `.env.example` (this repo's root) to `.env` and fill in — gitignored,
+never committed, structurally can't be `git add -A`-ed by accident since it
+lives inside the checkout but outside anything git ever considers tracking.
+See `.env.example` itself and `DESIGN.md`'s "GH_PAT: token strategy" for why
+`GH_PAT` here specifically needs `Secrets: Read and write` on *All
+repositories* and nothing more — a much narrower blast radius than it might
+look like at first glance.
