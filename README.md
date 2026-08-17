@@ -30,11 +30,10 @@ gh secret set GH_PAT -R mmorrow24work/ai-app-factory   # fine-grained PAT, see s
 
 ```sh
 cp .env.example .env
-# fill in CLAUDE_CODE_OAUTH_TOKEN (same token as step 1) and GH_PAT --
-# see .env.example itself for why this GH_PAT needs the SAME capability
-# as step 1's (Contents/Issues/Pull requests/Actions/Secrets), just
-# scoped to "All repositories" instead of just ai-app-factory
+# fill in CLAUDE_CODE_OAUTH_TOKEN (a fresh token is fine, or reuse step 1's)
 ```
+
+`GH_PAT` is deliberately **not** in `.env` — `factory-secrets.sh` prompts for it fresh (input hidden) every time it runs, scoped to just the one repo being provisioned, and never writes it to disk. See `.env.example` and `DESIGN.md`'s "GH_PAT: token strategy" for why a shared, stored `GH_PAT` was tried and rejected: the same value copied into every project's secret means one leak reaches all of them.
 
 `.env` is gitignored — lives inside this checkout, but git can never touch it. See `scripts/README.md` for the full CLI reference.
 

@@ -6,8 +6,8 @@ own `docs/journal.md` M0 entry did by hand into two commands.
 ```
 factory-new.sh        Scaffold templates/<type>/ into a new GitHub repo, apply
                        labels, register it in projects.json
-factory-secrets.sh    Set CLAUDE_CODE_OAUTH_TOKEN / GH_PAT on a repo from a
-                       local, untracked secrets store
+factory-secrets.sh    Set CLAUDE_CODE_OAUTH_TOKEN (from .env) and GH_PAT
+                       (prompted fresh, never stored) on a repo
 ```
 
 Both require `gh` (authenticated) and `jq` on `PATH`.
@@ -50,19 +50,28 @@ Run `scripts/factory-secrets.sh` on the new repo next — a fresh repo has no
 scripts/factory-secrets.sh my-new-tool
 ```
 
-Reads `CLAUDE_CODE_OAUTH_TOKEN` and `GH_PAT` from `.env` at this repo's root
-and sets them as Actions secrets on `mmorrow24work/<repo-name>` (`--owner` to
-override, `--env-file` to read from elsewhere). Errors clearly if the file or
-either variable is missing — it does not prompt or fall back silently, since
-a wrong secret would fail silently later inside a GitHub Actions run instead.
+Reads `CLAUDE_CODE_OAUTH_TOKEN` from `.env` at this repo's root and prompts
+for `GH_PAT` interactively (input hidden) every run — sets both as Actions
+secrets on `mmorrow24work/<repo-name>` (`--owner` to override, `--env-file`
+for a different `.env` location). Errors clearly if `.env` or
+`CLAUDE_CODE_OAUTH_TOKEN` is missing.
+
+The two secrets are handled differently on purpose. `CLAUDE_CODE_OAUTH_TOKEN`
+is a Claude subscription credential (not GitHub), safely reusable across
+every project — a leak costs quota, not repo access. `GH_PAT` is deliberately
+**never** read from `.env` or written to disk anywhere: mint a fresh
+fine-grained PAT scoped to "Only select repositories: `<that one repo>`"
+(works because the repo already exists by the time this script runs — run
+`factory-new.sh` first) with `Contents`, `Issues`, `Pull requests`, `Actions`,
+`Secrets` (Read and write), and paste it at the prompt. See `DESIGN.md`'s
+"GH_PAT: token strategy" for why a shared, `.env`-stored `GH_PAT` was tried
+twice and rejected both times — the same value copied into every project's
+own secret means one leak reaches all of them, not just one.
 
 ### `.env`
 
-Copy `.env.example` (this repo's root) to `.env` and fill in — gitignored,
-never committed, structurally can't be `git add -A`-ed by accident since it
-lives inside the checkout but outside anything git ever considers tracking.
-See `.env.example` itself and `DESIGN.md`'s "GH_PAT: token strategy" for why
-`GH_PAT` here specifically needs `Contents`/`Issues`/`Pull requests`/
-`Actions`/`Secrets` (Read and write) on *All repositories* — the same
-capability a single generated repo's own token needs (this value seeds
-that token), just pre-staged for whichever repo gets created next.
+Copy `.env.example` (this repo's root) to `.env` and fill in
+`CLAUDE_CODE_OAUTH_TOKEN` — gitignored, never committed, structurally can't
+be `git add -A`-ed by accident since it lives inside the checkout but outside
+anything git ever considers tracking. `GH_PAT` is intentionally not part of
+this file — see above.
