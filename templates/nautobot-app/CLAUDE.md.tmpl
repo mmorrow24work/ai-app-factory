@@ -1,0 +1,58 @@
+# CLAUDE.md
+
+Conventions for unattended (Lane B) work on `{{PROJECT_NAME}}`.
+
+{{PROJECT_DESCRIPTION}}
+
+- **App / distribution name**: `{{APP_NAME}}`
+- **Python package**: `{{PYTHON_PACKAGE}}`
+- **Default branch**: `{{BASE_BRANCH}}`
+
+Use those names exactly.
+
+## Repo map
+
+```
+{{PYTHON_PACKAGE}}/
+  __init__.py                      NautobotAppConfig subclass
+  models.py                        App data models
+  views.py  tables.py  filters.py  forms.py  urls.py
+  navigation.py                    Nav menu items
+  jobs/                            Nautobot Jobs
+  api/                             serializers.py, views.py, urls.py
+  migrations/
+  tests/
+.github/workflows/claude.yml       The Lane B driver
+.github/scripts/journal-entry.sh   Metrics-append script the workflow calls
+docs/journal.md                    Per-issue build metrics, appended by the workflow only — never edit by hand
+pyproject.toml                     Poetry project definition and dependencies
+.pre-commit-config.yaml            black/ruff pre-commit hooks
+.env                                Local secrets — never commit, see .env.example
+```
+
+Touch only files named in the issue or listed above. In particular, do not
+create `admin.py` — Nautobot surfaces models through its own UI (views,
+tables, filters, navigation), not Django admin; an admin registration would
+sit unused.
+
+## Conventions
+
+- **Never edit `docs/journal.md` by hand or from within a PR branch.** It's appended by `.github/workflows/claude.yml` *after* your PR merges, via `.github/scripts/journal-entry.sh`. Editing it in your branch means every open PR touches the same file and goes conflicting the moment any other PR merges.
+- Follow Nautobot App conventions: subclass Nautobot's base model/view/filter classes rather than plain Django ones where a Nautobot equivalent exists.
+- Verify Nautobot APIs against the installed package rather than assuming them — the workflow's Poetry step installs a real Nautobot into the runner specifically so imports, exports, and migration names can be checked locally instead of guessed, e.g.:
+
+  ```
+  poetry run python -c "import nautobot.apps.models as m; print(dir(m))"
+  ```
+- Model changes ship with their migration (`poetry run nautobot-server makemigrations`), committed alongside the model change.
+- Keep commit and PR scope to the files named in the issue or in the repo map above.
+- {{ADDITIONAL_CONVENTIONS}}
+
+## Definition of done
+
+- The issue's acceptance criteria are met.
+- Tests pass: `poetry run nautobot-server test {{PYTHON_PACKAGE}}`.
+- Lint is clean: `poetry run ruff check .` and `poetry run black --check .`.
+- Any shell script added is `bash -n`-clean and executable (`chmod +x`).
+- Any JSON added is valid (`jq . <file>` succeeds).
+- PR description explains what you implemented, what you verified, and anything you could not verify unattended.

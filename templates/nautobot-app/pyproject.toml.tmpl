@@ -1,0 +1,46 @@
+[tool.poetry]
+name = "{{APP_NAME}}"
+version = "0.1.0"
+description = "{{PROJECT_DESCRIPTION}}"
+authors = ["{{AUTHOR_NAME}}"]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Development Status :: 3 - Alpha",
+    "Framework :: Django",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+keywords = ["nautobot", "nautobot-app"]
+packages = [
+    { include = "{{PYTHON_PACKAGE}}" },
+]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+nautobot = "{{NAUTOBOT_VERSION}}"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+black = "*"
+ruff = "*"
+
+[tool.poetry.plugins."nautobot.plugins"]
+"{{PYTHON_PACKAGE}}" = "{{PYTHON_PACKAGE}}:config"
+
+[build-system]
+requires = ["poetry-core>=1.9.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 120
+target-version = ["py310", "py311", "py312"]
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
