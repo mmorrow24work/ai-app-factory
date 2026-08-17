@@ -1,0 +1,35 @@
+@import 'tailwindcss';
+
+/* Token names/values match uk-wealth-tracker's tailwind.config.js palette so the two sites
+   share one visual language. Only the light palette is wired up here -- no dark-mode toggle
+   in this milestone, so a .dark block would be dead code (CLAUDE.md: don't build ahead of
+   the issue that needs it). */
+:root {
+	color-scheme: light;
+	--radius: 0.5rem;
+
+	--background: 0 0% 100%;
+	--foreground: 0 0% 3.6%;
+	--card: 0 0% 100%;
+	--card-foreground: 0 0% 3.6%;
+	--popover: 0 0% 100%;
+	--popover-foreground: 0 0% 3.6%;
+	--muted: 0 0% 96.1%;
+	--muted-foreground: 0 0% 43.5%;
+	--accent: 0 0% 9.1%;
+	--accent-foreground: 0 0% 100%;
+	--destructive: 0 72% 45%;
+	--destructive-foreground: 0 0% 100%;
+	--border: 0 0% 89.8%;
+	--input: 0 0% 89.8%;
+	--primary: 0 0% 9.1%;
+	--primary-foreground: 0 0% 100%;
+	--secondary: 0 0% 96.1%;
+	--secondary-foreground: 0 0% 9.1%;
+	--ring: 0 0% 9.1%;
+}
+
+body {
+	background-color: hsl(var(--background));
+	color: hsl(var(--foreground));
+}
