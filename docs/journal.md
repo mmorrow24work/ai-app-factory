@@ -19,12 +19,12 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 <!-- VELOCITY_START -->
 | Metric | Value |
 |---|---|
-| Issues with recorded metrics | 4 |
-| Successful runs | 1 |
-| Mean time per issue | 1m 23s |
-| Mean turns per issue | 20 |
-| Mean output tokens per issue | 6,623 |
-| Mean estimated cost per issue | $0.0995 |
+| Issues with recorded metrics | 5 |
+| Successful runs | 2 |
+| Mean time per issue | 2m 54s |
+| Mean turns per issue | 53 |
+| Mean output tokens per issue | 15,077 |
+| Mean estimated cost per issue | $0.2266 |
 <!-- VELOCITY_END -->
 
 ---
@@ -85,3 +85,16 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 - **Output Tokens:** 26492
 - **Estimated Cost:** $0.3981 (notional — see above)
 - **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31988813715
+
+## 2026-08-17 — Issue #2: M1: Scaffold nautobot-app and netbox-plugin templates
+
+- **Result:** success
+- **PR:** —
+- **Milestone:** M1: Template library
+- **Model:** claude-sonnet-5
+- **Execution Duration:** 536 seconds
+- **Turns:** 188
+- **Input Tokens:** 574
+- **Output Tokens:** 48891
+- **Estimated Cost:** $0.7351 (notional — see above)
+- **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31990445787
