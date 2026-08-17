@@ -19,12 +19,12 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 <!-- VELOCITY_START -->
 | Metric | Value |
 |---|---|
-| Issues with recorded metrics | 15 |
-| Successful runs | 12 |
-| Mean time per issue | 5m 52s |
-| Mean turns per issue | 98 |
-| Mean output tokens per issue | 31,391 |
-| Mean estimated cost per issue | $0.4818 |
+| Issues with recorded metrics | 16 |
+| Successful runs | 13 |
+| Mean time per issue | 6m 07s |
+| Mean turns per issue | 103 |
+| Mean output tokens per issue | 32,850 |
+| Mean estimated cost per issue | $0.5031 |
 <!-- VELOCITY_END -->
 
 ---
@@ -228,3 +228,16 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 - **Output Tokens:** 46266
 - **Estimated Cost:** $0.7056 (notional — see above)
 - **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/32056727057
+
+## 2026-08-17 — Issue #29: Adopt uk-wealth-tracker's design system: Appearance, Colour palette, Typography, buttons
+
+- **Result:** success
+- **PR:** #33
+- **Milestone:** M3: Dashboard shell
+- **Model:** claude-sonnet-5
+- **Execution Duration:** 600 seconds
+- **Turns:** 175
+- **Input Tokens:** 536
+- **Output Tokens:** 54733
+- **Estimated Cost:** $0.8226 (notional — see above)
+- **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/32058696824
