@@ -19,12 +19,12 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 <!-- VELOCITY_START -->
 | Metric | Value |
 |---|---|
-| Issues with recorded metrics | 3 |
-| Successful runs | 0 |
-| Mean time per issue | 0m 19s |
-| Mean turns per issue | 1 |
-| Mean output tokens per issue | 0 |
-| Mean estimated cost per issue | $0.0000 |
+| Issues with recorded metrics | 4 |
+| Successful runs | 1 |
+| Mean time per issue | 1m 23s |
+| Mean turns per issue | 20 |
+| Mean output tokens per issue | 6,623 |
+| Mean estimated cost per issue | $0.0995 |
 <!-- VELOCITY_END -->
 
 ---
@@ -72,3 +72,16 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 - **Output Tokens:** 0
 - **Estimated Cost:** $0.0000 (notional — see above)
 - **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31988042935
+
+## 2026-08-17 — Issue #1: M1: Scaffold custom-script template
+
+- **Result:** success
+- **PR:** #11
+- **Milestone:** M1: Template library
+- **Model:** claude-sonnet-5
+- **Execution Duration:** 276 seconds
+- **Turns:** 76
+- **Input Tokens:** 226
+- **Output Tokens:** 26492
+- **Estimated Cost:** $0.3981 (notional — see above)
+- **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31988813715
