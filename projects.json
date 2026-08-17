@@ -5,5 +5,12 @@
     "createdAt": "2026-08-16",
     "status": "active",
     "ask": "Template the repeated repo-scaffolding process (nautobot app/job, netbox plugin, custom script) and build a SvelteKit front-end to Claude Code CLI: vague requirements -> approved design doc -> GitHub milestones/issues -> cross-project dashboard (sidebar, elapsed time, token burn, commit heatmap, session status)."
+  },
+  {
+    "repo": "mmorrow24work/ai-app-factory-hello-world",
+    "type": "custom-script",
+    "createdAt": "2026-08-17",
+    "status": "active",
+    "ask": "Create a simple hello-world site to test the ai-app-factory build process"
   }
 ]
