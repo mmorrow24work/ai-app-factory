@@ -19,12 +19,12 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 <!-- VELOCITY_START -->
 | Metric | Value |
 |---|---|
-| Issues with recorded metrics | 6 |
-| Successful runs | 3 |
-| Mean time per issue | 4m 08s |
-| Mean turns per issue | 75 |
-| Mean output tokens per issue | 22,270 |
-| Mean estimated cost per issue | $0.3347 |
+| Issues with recorded metrics | 7 |
+| Successful runs | 4 |
+| Mean time per issue | 3m 56s |
+| Mean turns per issue | 70 |
+| Mean output tokens per issue | 21,319 |
+| Mean estimated cost per issue | $0.3204 |
 <!-- VELOCITY_END -->
 
 ---
@@ -111,3 +111,16 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 - **Output Tokens:** 58236
 - **Estimated Cost:** $0.8752 (notional — see above)
 - **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31990447244
+
+## 2026-08-17 — Issue #12: M1: Bake Support & Handoff policy into every template's README
+
+- **Result:** success
+- **PR:** —
+- **Milestone:** M1: Template library
+- **Model:** claude-sonnet-5
+- **Execution Duration:** 165 seconds
+- **Turns:** 38
+- **Input Tokens:** 108
+- **Output Tokens:** 15614
+- **Estimated Cost:** $0.2345 (notional — see above)
+- **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31991555175
