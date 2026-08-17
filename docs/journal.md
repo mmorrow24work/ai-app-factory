@@ -19,12 +19,12 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 <!-- VELOCITY_START -->
 | Metric | Value |
 |---|---|
-| Issues with recorded metrics | 10 |
-| Successful runs | 7 |
-| Mean time per issue | 4m 46s |
-| Mean turns per issue | 78 |
-| Mean output tokens per issue | 25,866 |
-| Mean estimated cost per issue | $0.3947 |
+| Issues with recorded metrics | 11 |
+| Successful runs | 8 |
+| Mean time per issue | 5m 08s |
+| Mean turns per issue | 83 |
+| Mean output tokens per issue | 27,863 |
+| Mean estimated cost per issue | $0.4282 |
 <!-- VELOCITY_END -->
 
 ---
@@ -163,3 +163,16 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 - **Output Tokens:** 51769
 - **Estimated Cost:** $0.8377 (notional — see above)
 - **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31993587814
+
+## 2026-08-17 — Issue #5: M4: Token-burn chart, session status, and commit heatmap widgets
+
+- **Result:** success
+- **PR:** #19
+- **Milestone:** M4: Usage widgets
+- **Model:** claude-sonnet-5
+- **Execution Duration:** 523 seconds
+- **Turns:** 135
+- **Input Tokens:** 15084
+- **Output Tokens:** 47838
+- **Estimated Cost:** $0.7628 (notional — see above)
+- **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31998258696
