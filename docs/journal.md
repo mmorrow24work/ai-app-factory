@@ -19,12 +19,12 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 <!-- VELOCITY_START -->
 | Metric | Value |
 |---|---|
-| Issues with recorded metrics | 11 |
-| Successful runs | 8 |
-| Mean time per issue | 5m 08s |
-| Mean turns per issue | 83 |
-| Mean output tokens per issue | 27,863 |
-| Mean estimated cost per issue | $0.4282 |
+| Issues with recorded metrics | 12 |
+| Successful runs | 9 |
+| Mean time per issue | 5m 37s |
+| Mean turns per issue | 92 |
+| Mean output tokens per issue | 30,248 |
+| Mean estimated cost per issue | $0.4632 |
 <!-- VELOCITY_END -->
 
 ---
@@ -176,3 +176,16 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 - **Output Tokens:** 47838
 - **Estimated Cost:** $0.7628 (notional — see above)
 - **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31998258696
+
+## 2026-08-17 — Issue #6: M5: Intake page and design-doc drafting workflow
+
+- **Result:** success
+- **PR:** #22
+- **Milestone:** M5: Intake to design doc
+- **Model:** claude-sonnet-5
+- **Execution Duration:** 665 seconds
+- **Turns:** 180
+- **Input Tokens:** 544
+- **Output Tokens:** 56481
+- **Estimated Cost:** $0.8488 (notional — see above)
+- **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/32004954282
