@@ -1,0 +1,13 @@
+# {{PROJECT_NAME}}
+
+{{PROJECT_DESCRIPTION}} A NetBox plugin built and evolved via the unattended (Lane B) Claude Code pipeline: label an issue `claude-go` and `.github/workflows/claude.yml` implements it, opens a PR, and records the run in `docs/journal.md`.
+
+## Development
+
+Requires a local NetBox install to develop and test against:
+
+```
+pip install -e .
+python manage.py migrate
+python manage.py test {{PYTHON_PACKAGE}}
+```

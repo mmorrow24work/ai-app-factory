@@ -1,0 +1,203 @@
+name: claude
+
+# Lane B (unattended) driver for {{PROJECT_NAME}}. Fires when the `claude-go`
+# label is applied to an issue, or on demand via workflow_dispatch.
+#
+# Lane discipline: issues carrying `lane:interactive` are meant to be driven
+# by hand and are excluded from the automatic path below (still runnable
+# deliberately via workflow_dispatch). `lane:manual` is excluded outright.
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to implement (overrides lane exclusions)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  claude:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' &&
+       github.event.label.name == 'claude-go' &&
+       !contains(github.event.issue.labels.*.name, 'lane:interactive') &&
+       !contains(github.event.issue.labels.*.name, 'lane:manual')) ||
+      (github.event_name == 'issue_comment' &&
+       contains(github.event.comment.body, '@claude') &&
+       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve target issue and model
+        id: cfg
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            num="${{ inputs.issue_number }}"
+          else
+            num="${{ github.event.issue.number }}"
+          fi
+          echo "number=$num" >> "$GITHUB_OUTPUT"
+
+          labels=$(gh issue view "$num" --repo "$GITHUB_REPOSITORY" \
+                     --json labels --jq '[.labels[].name] | join(",")')
+          echo "Issue #$num labels: $labels"
+
+          # Inject the issue title/body into the prompt rather than relying on
+          # Claude shelling out to `gh` to discover its own task: on a
+          # workflow_dispatch run the issue body is not part of the event
+          # payload, and a denied tool call leaves the agent with nothing to
+          # work from. Uses a random heredoc delimiter so issue text cannot
+          # terminate the block early.
+          delim="EOF_$(openssl rand -hex 8)"
+          {
+            echo "title<<$delim"
+            gh issue view "$num" --repo "$GITHUB_REPOSITORY" --json title --jq .title
+            echo "$delim"
+            echo "body<<$delim"
+            gh issue view "$num" --repo "$GITHUB_REPOSITORY" --json body --jq .body
+            echo "$delim"
+          } >> "$GITHUB_OUTPUT"
+
+          # The `model:opus` label escalates off the Sonnet default.
+          if printf '%s' "$labels" | grep -q 'model:opus'; then
+            echo "model=claude-opus-5" >> "$GITHUB_OUTPUT"
+          else
+            echo "model=claude-sonnet-5" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Give the agent a real Nautobot to introspect. Without this the runner
+      # has no nautobot package installed, so every Nautobot-specific API
+      # decision (module contents, base classes, migration names) is an
+      # unverifiable guess that only gets checked once CI runs on the PR.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install app and dependencies
+        continue-on-error: true
+        run: poetry install --no-interaction
+
+      - name: Record start time
+        id: timer
+        run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+      - uses: anthropics/claude-code-action@v1
+        id: claude
+        with:
+          # Authenticates against the Claude subscription, NOT pay-per-token
+          # API billing. `anthropic_api_key` is deliberately NOT set here: it
+          # bills API usage separately from the subscription, so setting it
+          # would mean paying twice. Mint this token with `claude setup-token`.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Prefer a PAT when present: PRs opened with the default GITHUB_TOKEN
+          # do NOT trigger other workflows, so CI would silently never run on
+          # Claude's PRs. Falls back to GITHUB_TOKEN until GH_PAT is set.
+          github_token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          # track_progress is only valid for issue/PR-triggered events — the
+          # action hard-fails on workflow_dispatch if it is set.
+          track_progress: ${{ github.event_name != 'workflow_dispatch' }}
+          base_branch: "{{BASE_BRANCH}}"
+          prompt: |
+            Implement issue #${{ steps.cfg.outputs.number }} in this repository.
+
+            ## Issue #${{ steps.cfg.outputs.number }}: ${{ steps.cfg.outputs.title }}
+
+            ${{ steps.cfg.outputs.body }}
+
+            ## Instructions
+
+            Read CLAUDE.md first and obey it: conventions, the repo map, and
+            the definition of done.
+
+            You are running unattended. Nobody can approve a tool call or
+            answer a question mid-run, so asking will simply end the run with
+            nothing done. Work with the tools you have.
+
+            Nautobot and this app's dependencies are installed in a poetry
+            virtualenv on this runner. Verify Nautobot APIs against the
+            installed package rather than assuming them — check what a module
+            actually exports, what a base class already provides, and which
+            migrations really exist, before you rely on any of it, e.g.:
+
+                poetry run python -c "import nautobot.apps.models as m; print(dir(m))"
+
+            There is no Postgres or Redis here, so anything needing a database
+            (migrate, test) still belongs to CI — but imports, exports, and
+            file layout are all checkable locally.
+
+            Implement the issue per its acceptance criteria, touching only
+            files named in the issue or in CLAUDE.md's repo map. This is a
+            Nautobot App: the Python package is {{PYTHON_PACKAGE}}.
+
+            Run the checks listed in CLAUDE.md and fix until they are clean.
+            If a check's tooling is not installed on this runner (early
+            milestones scaffold it, CI arrives in a later issue), say so
+            plainly in the PR description rather than inventing a workaround.
+
+            Finish by opening a pull request against {{BASE_BRANCH}}. Its
+            description must include the line "Closes #${{ steps.cfg.outputs.number }}",
+            and should explain what you implemented, what you verified, and
+            anything you could not verify here.
+
+            If the acceptance criteria are genuinely ambiguous, or the issue
+            depends on work from an earlier milestone that is not merged yet,
+            post one comment on the issue explaining the blocker instead of
+            guessing — then stop.
+          claude_args: >-
+            --model ${{ steps.cfg.outputs.model }}
+            --max-turns 200
+            --allowedTools "Bash(gh:*),Bash(git:*),Bash(poetry:*),Bash(python:*),Bash(python3:*),Bash(pytest:*),Bash(nautobot-server:*),Bash(ruff:*),Bash(black:*),Bash(pre-commit:*),Bash(jq:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Edit,Read,Write,Glob,Grep"
+
+      # --- Journal capture -------------------------------------------------
+      # Both steps run with always() so failed and turn-capped runs are
+      # recorded too — execution_file is written before the action raises its
+      # terminal error, so those runs still carry full metrics.
+
+      - name: Upload execution transcript
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: transcript-issue-${{ steps.cfg.outputs.number }}-run-${{ github.run_id }}
+          path: ${{ steps.claude.outputs.execution_file }}
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Append journal entry
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.cfg.outputs.number }}
+          MODEL: ${{ steps.cfg.outputs.model }}
+          RESULT: ${{ steps.claude.outcome }}
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          START: ${{ steps.timer.outputs.start }}
+        run: |
+          export DURATION=$(( $(date +%s) - START ))
+          export ISSUE_TITLE=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json title --jq .title)
+          export MILESTONE=$(gh issue view "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --json milestone --jq '.milestone.title // "—"')
+          export PR_REF=$(gh pr list --repo "$GITHUB_REPOSITORY" --search "linked:issue-$ISSUE_NUMBER" --json number --jq 'if length>0 then "#\(.[0].number)" else "—" end' 2>/dev/null || echo "—")
+          bash .github/scripts/journal-entry.sh

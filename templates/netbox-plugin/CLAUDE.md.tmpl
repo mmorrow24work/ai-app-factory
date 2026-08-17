@@ -1,0 +1,58 @@
+# CLAUDE.md
+
+Conventions for unattended (Lane B) work on `{{PROJECT_NAME}}`.
+
+{{PROJECT_DESCRIPTION}}
+
+- **Plugin / distribution name**: `{{APP_NAME}}`
+- **Python package**: `{{PYTHON_PACKAGE}}`
+- **Default branch**: `{{BASE_BRANCH}}`
+
+Use those names exactly.
+
+## Repo map
+
+```
+{{PYTHON_PACKAGE}}/
+  __init__.py                      PluginConfig subclass
+  models.py                        Plugin data models
+  views.py  tables.py  forms.py  urls.py
+  filtersets.py                    NetBox uses filtersets.py, not filters.py
+  navigation.py                    Nav menu items
+  search.py                        Global search registration
+  graphql.py                       GraphQL schema/types
+  api/                             serializers.py, views.py, urls.py
+  migrations/
+  templates/{{PYTHON_PACKAGE}}/    Plugin HTML templates
+  tests/
+.github/workflows/claude.yml       The Lane B driver
+.github/scripts/journal-entry.sh   Metrics-append script the workflow calls
+docs/journal.md                    Per-issue build metrics, appended by the workflow only — never edit by hand
+pyproject.toml                     setuptools project definition and dependencies
+.pre-commit-config.yaml            ruff lint/format pre-commit hooks
+.env                                Local secrets — never commit, see .env.example
+```
+
+Touch only files named in the issue or listed above.
+
+## Conventions
+
+- **Never edit `docs/journal.md` by hand or from within a PR branch.** It's appended by `.github/workflows/claude.yml` *after* your PR merges, via `.github/scripts/journal-entry.sh`. Editing it in your branch means every open PR touches the same file and goes conflicting the moment any other PR merges.
+- Follow NetBox plugin conventions (see https://docs.netbox.dev/en/stable/plugins/development/): subclass `netbox.plugins.PluginConfig`, not a plain Django `AppConfig`; use NetBox's base model/view/filterset classes where a NetBox equivalent exists.
+- Verify NetBox APIs against the installed package rather than assuming them — the workflow's setup step installs a real NetBox into the runner specifically so imports and base classes can be checked locally instead of guessed, e.g.:
+
+  ```
+  python -c "import netbox.plugins as p; print(dir(p))"
+  ```
+- Model changes ship with their migration (`python manage.py makemigrations {{PYTHON_PACKAGE}}`), committed alongside the model change.
+- Keep commit and PR scope to the files named in the issue or in the repo map above.
+- {{ADDITIONAL_CONVENTIONS}}
+
+## Definition of done
+
+- The issue's acceptance criteria are met.
+- Tests pass: `python manage.py test {{PYTHON_PACKAGE}}` (run from the NetBox install directory, plugin installed via `pip install -e .`).
+- Lint is clean: `ruff check {{PYTHON_PACKAGE}}/` and `ruff format --check {{PYTHON_PACKAGE}}/`.
+- Any shell script added is `bash -n`-clean and executable (`chmod +x`).
+- Any JSON added is valid (`jq . <file>` succeeds).
+- PR description explains what you implemented, what you verified, and anything you could not verify unattended.
