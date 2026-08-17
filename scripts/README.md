@@ -17,8 +17,7 @@ Both require `gh` (authenticated) and `jq` on `PATH`.
 ```
 scripts/factory-new.sh custom-script my-new-tool \
   --ask "A CLI that syncs X to Y" \
-  --set ENTRY_POINT=run.py \
-  --set TEST_COMMAND="pytest"
+  --set ENTRY_POINT=run.py
 ```
 
 - `<type>` is one of `nautobot-app`, `netbox-plugin`, `custom-script`.
@@ -27,11 +26,13 @@ scripts/factory-new.sh custom-script my-new-tool \
 - Copies `templates/<type>/` into the new repo, stripping `.tmpl` extensions
   and substituting `{{PROJECT_NAME}}`-style placeholders. Placeholders with
   an obvious default (`PROJECT_NAME`, `BASE_BRANCH`, `OWNER_GITHUB_HANDLE`,
-  `APP_NAME`, `PYTHON_PACKAGE`, `AUTHOR_NAME`, `ADDITIONAL_CONVENTIONS`) are
-  filled in automatically; anything template-specific with no safe default
-  (e.g. `NAUTOBOT_VERSION`, `ENTRY_POINT`, `TEST_COMMAND`) needs
-  `--set KEY=VALUE`, or is prompted for interactively if the script is run
-  at a terminal without it.
+  `APP_NAME`, `PYTHON_PACKAGE`, `AUTHOR_NAME`, `ADDITIONAL_CONVENTIONS`,
+  `TEST_COMMAND` → `pytest`, `NAUTOBOT_VERSION` → `^3.0.0`, `NETBOX_VERSION`
+  → `v4.5.0`) are filled in automatically, overridable with `--set`.
+  `ENTRY_POINT` (custom-script) has no default and always needs
+  `--set KEY=VALUE` — there is no defensible guess for a script's main file
+  — or is prompted for interactively if the script is run at a terminal
+  without it.
 - Applies `templates/_shared/labels.json` to the new repo via
   `gh label create --force`.
 - Appends `{repo, type, createdAt, status: "active", ask}` to this repo's own

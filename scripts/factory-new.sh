@@ -46,11 +46,18 @@ Options:
                          Prints the scaffold directory and leaves it in place.
   -h, --help            Show this help
 
+Placeholders with a built-in default (override with --set if needed):
+  TEST_COMMAND       pytest
+  NAUTOBOT_VERSION   ^3.0.0
+  NETBOX_VERSION     v4.5.0
+
+custom-script's ENTRY_POINT has no default and always needs --set — there is
+no defensible guess for a script's main file.
+
 Example:
   factory-new.sh custom-script my-new-tool \
     --ask "A CLI that syncs X to Y" \
-    --set ENTRY_POINT=run.py \
-    --set TEST_COMMAND="pytest"
+    --set ENTRY_POINT=run.py
 EOF
 }
 
@@ -183,6 +190,13 @@ set_default AUTHOR_NAME "$AUTHOR"
 set_default APP_NAME "$REPO_NAME"
 set_default PYTHON_PACKAGE "$(default_python_package "$REPO_NAME")"
 set_default ADDITIONAL_CONVENTIONS "(none yet — add project-specific conventions here as they come up)"
+set_default TEST_COMMAND "pytest"
+set_default NAUTOBOT_VERSION "^3.0.0"
+set_default NETBOX_VERSION "v4.5.0"
+# ENTRY_POINT intentionally has no default: there is no defensible guess for a
+# custom-script project's main file, and silently picking one would produce a
+# repo whose CLAUDE.md names a script that never gets written. Falls through
+# to the MISSING/error path below like any other undefaulted placeholder.
 
 for key in "${NEEDED[@]}"; do
   if [ "$key" = "> _shared/SUPPORT_HANDOFF.md.tmpl" ]; then

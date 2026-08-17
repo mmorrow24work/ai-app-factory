@@ -123,9 +123,17 @@ jobs:
                - If it does NOT exist, create it from the template via
                  `scripts/factory-new.sh <type> <slug> --ask "<one-line summary of the
                  doc's Problem/Goal>"`. This is non-interactive (no terminal to prompt on)
-                 so `--ask` is required. It creates the repo, applies the shared label
-                 taxonomy, and updates `projects.json` in this checkout (not yet
-                 committed -- see step 6).
+                 so `--ask` is required. `TEST_COMMAND`, `NAUTOBOT_VERSION`, and
+                 `NETBOX_VERSION` all have built-in defaults (pytest / ^3.0.0 / v4.5.0) --
+                 override with `--set KEY=VALUE` only if the design doc states a different
+                 value. `custom-script`'s `ENTRY_POINT` has NO default and always needs
+                 `--set ENTRY_POINT=<path>` -- derive the path from the doc's Architecture
+                 section (e.g. this doc might name the main file outright); if the doc
+                 truly doesn't say, run `scripts/factory-new.sh custom-script <slug> --ask
+                 "..." --dry-run` first without `--set` to see exactly which placeholders
+                 it demands, rather than guessing blind. `factory-new.sh` creates the repo,
+                 applies the shared label taxonomy, and updates `projects.json` in this
+                 checkout (not yet committed -- see step 6).
                - If it already exists, skip repo creation. This run may be a re-run (e.g.
                  workflow_dispatch against an already-processed doc) -- treat anything
                  already in place as done, not an error.
