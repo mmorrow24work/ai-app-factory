@@ -1,6 +1,10 @@
 <script>
 	import { resolve } from '$app/paths';
 	import { getStoredToken, setStoredToken, clearStoredToken } from '$lib/githubToken.js';
+	import Button from '$lib/ui/button.svelte';
+	import ThemeSettings from '$lib/ThemeSettings.svelte';
+	import PaletteSettings from '$lib/PaletteSettings.svelte';
+	import TypographySettings from '$lib/TypographySettings.svelte';
 
 	// $derived, not $state+$effect: getStoredToken() reads nothing reactive, so this only
 	// runs once per component instance (client-side; this page is prerendered and
@@ -67,21 +71,22 @@
 			/>
 		</label>
 		<div class="flex items-center gap-3">
-			<button
-				type="submit"
-				class="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90"
-			>
-				Save
-			</button>
-			<button
-				type="button"
-				onclick={clear}
-				class="rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-accent"
-			>
-				Clear
-			</button>
+			<Button type="submit">Save</Button>
+			<Button type="button" variant="outline" onclick={clear}>Clear</Button>
 			{#if saved}<span class="text-sm text-muted-foreground">Saved.</span>{/if}
 			{#if cleared}<span class="text-sm text-muted-foreground">Cleared.</span>{/if}
 		</div>
 	</form>
+
+	<h2 class="mt-10 text-lg font-semibold text-foreground">Appearance &amp; typography</h2>
+	<p class="mt-2 text-muted-foreground">
+		Display preferences below are stored only in this browser's <code class="text-foreground"
+			>localStorage</code
+		> and apply immediately, app-wide.
+	</p>
+	<div class="mt-4 flex flex-col gap-4">
+		<ThemeSettings />
+		<PaletteSettings />
+		<TypographySettings />
+	</div>
 </article>
