@@ -137,14 +137,19 @@ jobs:
             and should explain what you implemented, what you verified, and
             anything you could not verify here.
 
-            If the acceptance criteria are genuinely ambiguous, or the issue
+            If the acceptance criteria are genuinely ambiguous, the issue
             depends on work from an earlier milestone that is not merged yet,
-            post one comment on the issue explaining the blocker instead of
-            guessing — then stop.
+            or you hit persistent tool/permission denials you cannot work
+            around, post one comment on the issue explaining the blocker
+            instead of guessing or silently giving up — then stop. A run
+            that ends with no PR, no comment, and no trace of why is strictly
+            worse than one that explains the blocker: the next attempt (by a
+            human or another run) starts from nothing instead of from your
+            diagnosis.
           claude_args: >-
             --model ${{ steps.cfg.outputs.model }}
             --max-turns 200
-            --allowedTools "Bash(gh:*),Bash(git:*),Bash(jq:*),Bash(node:*),Bash(npm:*),Bash(pnpm:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Edit,Read,Write,Glob,Grep"
+            --allowedTools "Bash(gh:*),Bash(git:*),Bash(jq:*),Bash(node:*),Bash(npm:*),Bash(npx:*),Bash(pnpm:*),Bash(curl:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Edit,Read,Write,Glob,Grep"
 
       # --- Journal capture -------------------------------------------------
       # Both steps run with always() so failed and turn-capped runs are

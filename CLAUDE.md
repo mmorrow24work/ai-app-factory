@@ -25,6 +25,7 @@ Only `templates/`, `scripts/`, `site/`, `docs/adr/`, and root docs exist as dire
 - **The site is static.** No server-side code, no secrets committed anywhere in `site/`. Anything needing a secret (drafting a design doc, generating issues) is a GitHub Actions workflow triggered via `workflow_dispatch`, never a Svelte server route.
 - **JS/TS in `site/`**: use plain `fetch` against the GitHub REST/GraphQL API and raw.githubusercontent.com for `docs/journal.md`/`projects.json` — no bespoke GitHub API client library.
 - Keep commit and PR scope to the files named in the issue or in the repo map above.
+- **When an issue asks you to fetch reference files from another repo (`gh api repos/.../contents/<path>`), write the decoded content directly to its real destination path in this working tree** — via the `Write` tool, or `... --jq .content | base64 -d > path/inside/this/repo`. Never stage it in `/tmp` or a scratch directory first: the sandbox only allows writes inside this checkout, so `/tmp` paths and improvised scratch dirs (`.scratch/`, `tmp_x/`) get blocked, and repeatedly retrying different scratch locations burns turns without producing anything committable. Found the hard way on issue #29, which spent 99 turns and $4.19 fighting this before giving up with no PR, no branch, and no comment.
 
 ## Definition of done
 
