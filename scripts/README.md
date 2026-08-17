@@ -62,6 +62,7 @@ Copy `.env.example` (this repo's root) to `.env` and fill in — gitignored,
 never committed, structurally can't be `git add -A`-ed by accident since it
 lives inside the checkout but outside anything git ever considers tracking.
 See `.env.example` itself and `DESIGN.md`'s "GH_PAT: token strategy" for why
-`GH_PAT` here specifically needs `Secrets: Read and write` on *All
-repositories* and nothing more — a much narrower blast radius than it might
-look like at first glance.
+`GH_PAT` here specifically needs `Contents`/`Issues`/`Pull requests`/
+`Actions`/`Secrets` (Read and write) on *All repositories* — the same
+capability a single generated repo's own token needs (this value seeds
+that token), just pre-staged for whichever repo gets created next.

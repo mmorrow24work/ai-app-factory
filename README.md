@@ -31,8 +31,9 @@ gh secret set GH_PAT -R mmorrow24work/ai-app-factory   # fine-grained PAT, see s
 ```sh
 cp .env.example .env
 # fill in CLAUDE_CODE_OAUTH_TOKEN (same token as step 1) and GH_PAT --
-# see .env.example itself for why this GH_PAT needs different scope
-# than step 1's (Secrets-only, but "All repositories")
+# see .env.example itself for why this GH_PAT needs the SAME capability
+# as step 1's (Contents/Issues/Pull requests/Actions/Secrets), just
+# scoped to "All repositories" instead of just ai-app-factory
 ```
 
 `.env` is gitignored — lives inside this checkout, but git can never touch it. See `scripts/README.md` for the full CLI reference.
