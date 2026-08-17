@@ -27,6 +27,16 @@ Every recent project (`nautobot-app-pytest-compliance-rule-engine`, `uk-wealth-t
 
 **Journal convention:** the *workflow* appends metrics to `docs/journal.md` after each run (`.github/scripts/journal-entry.sh`, `if: always()`), never Claude's own branch. Adopted deliberately: `nautobot-app-pytest-compliance-rule-engine`'s journal documents that having Claude append its own entry inside each PR (as `uk-wealth-tracker` does) makes every open PR touch the same file, so almost every PR goes conflicting the moment any other PR merges.
 
+## GH_PAT: token strategy
+
+`GH_PAT` needs to create repositories under `mmorrow24work` — `generate-issues.yml` calls `scripts/factory-new.sh`, which calls `gh repo create`. Found the hard way during M7's end-to-end dry run: a fine-grained PAT scoped to "Only select repositories" **cannot** cover a repo that doesn't exist yet, so repo-creation forces "All repositories" coverage regardless of which token type is used — there is no way to keep this token's blast radius narrow by *repo*. The only lever left is *capability*.
+
+**Classic PAT, `repo` scope.** Trivial to create (one checkbox) and covers everything this pipeline needs — repo creation, contents, issues, PRs, labels, milestones, and Actions secrets management — bundled into that single scope, with no risk of under-scoping it. The cost is that bundling: `repo` is all-or-nothing across *every* repository the account can reach, including private repos and anything merely collaborated on, and grants near-total control (code, secrets, webhooks, collaborators) as one unit. `workflow` is a separate classic scope — leaving it off still gates `.github/workflows/*` changes behind human review even with `repo` granted (see "Known limitations" in the README).
+
+**Fine-grained PAT, All repositories, selected permissions.** More setup friction — Administration, Contents, Issues, Pull requests, Actions, and Secrets each need Read-and-write toggled individually, and it's easy to under-scope on the first pass (exactly what happened here: Administration was missed because nothing before M7 had needed repo *creation*, only operations on repos that already existed). The payoff is that repo coverage is forced broad but *capability* stays granular: a leaked token is limited to the specific categories granted, not classic `repo`'s bundled everything, and Workflows can still be deliberately withheld the same way.
+
+**Decision: fine-grained, All repositories, with exactly `Administration`, `Contents`, `Issues`, `Pull requests`, `Actions`, `Secrets` (Read and write) — not `Workflows`.** Repo-coverage blast radius is unavoidably equal either way once creation is a requirement, so capability scope is the only real difference, and fine-grained is narrower there. The one-time setup friction is worth the permanently smaller blast radius.
+
 ## Support & handoff
 
 Every generated project should be explicit, in its own README, about two things:
