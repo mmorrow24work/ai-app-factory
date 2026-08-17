@@ -19,7 +19,7 @@ docs/journal.md                    Empty journal skeleton — copied as-is
 
 ## Placeholders a consumer needs to fill in
 
-`factory-new.sh` (M2) will do this substitution automatically. Filling in by hand today means replacing these tokens across `CLAUDE.md.tmpl`, `README.md.tmpl`, `pyproject.toml.tmpl`, `.github/workflows/claude.yml`, and `.env.example`:
+`factory-new.sh` (M2) will do this substitution automatically. Filling in by hand today means replacing these tokens across `CLAUDE.md.tmpl`, `README.md.tmpl`, `pyproject.toml.tmpl`, `.github/workflows/claude.yml`, `.env.example`, and the shared `templates/_shared/SUPPORT_HANDOFF.md.tmpl` that `README.md.tmpl` pulls in via `{{> _shared/SUPPORT_HANDOFF.md.tmpl}}`:
 
 | Placeholder | Meaning |
 |---|---|
@@ -31,5 +31,6 @@ docs/journal.md                    Empty journal skeleton — copied as-is
 | `{{NETBOX_VERSION}}` | Git tag/branch of NetBox the Lane B driver installs to verify APIs against (e.g. `v4.5.0`) |
 | `{{ADDITIONAL_CONVENTIONS}}` | Any project-specific conventions beyond the shared skeleton |
 | `{{BASE_BRANCH}}` | Default branch the Lane B driver targets (usually `main`) |
+| `{{OWNER_GITHUB_HANDLE}}` | GitHub username of the human owner mentioned in the Support & Handoff section (defaults to `mmorrow24work` if unset) |
 
 After substitution, `CLAUDE.md.tmpl` → `CLAUDE.md`, `README.md.tmpl` → `README.md`, and `pyproject.toml.tmpl` → `pyproject.toml` at the root of the new repo. The new repo also needs `CLAUDE_CODE_OAUTH_TOKEN` and (optionally) `GH_PAT` set as GitHub Actions secrets, and labels applied from `templates/_shared/labels.json`, before the `claude-go` pipeline can run — both are `scripts/factory-secrets.sh` / `scripts/factory-new.sh` responsibilities (M2), not manual steps.
