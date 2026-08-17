@@ -51,7 +51,9 @@ jobs:
 
       - name: Re-dispatch generate-issues per changed design doc
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          # actions:write on this same repo, which GITHUB_TOKEN already has (see
+          # permissions: above) -- no GH_PAT needed anywhere in this workflow anymore.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           paths=$(git diff --name-only --diff-filter=AM \
@@ -92,7 +94,15 @@ jobs:
           # Same subscription-auth rationale as the other workflows in this repo:
           # claude_code_oauth_token, not anthropic_api_key.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          # GITHUB_TOKEN only, not GH_PAT: this job's whole output is one issue opened in
+          # THIS repo, which GITHUB_TOKEN's default issues:write (see permissions: above)
+          # already covers -- no cross-repo capability needed post-redesign. Also fixes a
+          # real notification gap: GH_PAT authenticates as mmorrow24work (the account
+          # owner) themselves, and GitHub does not notify you about actions your own
+          # account took -- the provisioning issue, the one thing in this whole loop that
+          # most needs a human's attention, was firing zero notifications. github-actions[bot]
+          # opening it is a genuinely different actor, so it notifies normally.
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           track_progress: false
           base_branch: main
           prompt: |
