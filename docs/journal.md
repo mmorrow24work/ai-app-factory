@@ -19,12 +19,12 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 <!-- VELOCITY_START -->
 | Metric | Value |
 |---|---|
-| Issues with recorded metrics | 8 |
-| Successful runs | 5 |
-| Mean time per issue | 4m 02s |
+| Issues with recorded metrics | 9 |
+| Successful runs | 6 |
+| Mean time per issue | 4m 17s |
 | Mean turns per issue | 72 |
-| Mean output tokens per issue | 21,665 |
-| Mean estimated cost per issue | $0.3256 |
+| Mean output tokens per issue | 22,988 |
+| Mean estimated cost per issue | $0.3455 |
 <!-- VELOCITY_END -->
 
 ---
@@ -137,3 +137,16 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 - **Output Tokens:** 24088
 - **Estimated Cost:** $0.3621 (notional — see above)
 - **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31991556852
+
+## 2026-08-17 — Issue #9: M3: Architecture diagram + GitHub CLI command reference page
+
+- **Result:** success
+- **PR:** #17
+- **Milestone:** M3: Dashboard shell
+- **Model:** claude-sonnet-5
+- **Execution Duration:** 375 seconds
+- **Turns:** 68
+- **Input Tokens:** 216
+- **Output Tokens:** 33570
+- **Estimated Cost:** $0.5042 (notional — see above)
+- **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31992320697
