@@ -27,6 +27,14 @@ Every recent project (`nautobot-app-pytest-compliance-rule-engine`, `uk-wealth-t
 
 **Journal convention:** the *workflow* appends metrics to `docs/journal.md` after each run (`.github/scripts/journal-entry.sh`, `if: always()`), never Claude's own branch. Adopted deliberately: `nautobot-app-pytest-compliance-rule-engine`'s journal documents that having Claude append its own entry inside each PR (as `uk-wealth-tracker` does) makes every open PR touch the same file, so almost every PR goes conflicting the moment any other PR merges.
 
+## Support & handoff
+
+Every generated project should be explicit, in its own README, about two things:
+
+**Getting help while it's still under active build.** The support channel *is* the pipeline's own comment/label mechanism, not a separate system: open an issue or comment on one, and either apply `claude-go` (or comment `@claude`) to have the unattended pipeline attempt a fix itself, or mention the human owner (`@mmorrow24work`) for anything Claude can't resolve or shouldn't attempt unattended (design decisions, ambiguous requirements, anything `lane:manual`).
+
+**Taking ownership once it's done.** When a project's milestones are complete, the recipient forks the repo to their own GitHub account. This is a real, structural handoff, not just a suggestion: GitHub forks do **not** inherit the parent repo's Actions secrets, so `claude-go` on the fork simply has no `CLAUDE_CODE_OAUTH_TOKEN`/`GH_PAT` to run with — the pipeline stops working on the fork automatically the moment it's created, with no separate revoke step needed on the original owner's side. If the new owner wants to keep using the unattended pipeline going forward, they set up their own secrets on their fork (same `claude setup-token` / `gh secret set` steps documented in this repo's own `README.md`) and it becomes entirely theirs from there.
+
 ## Milestones
 
 - **M0 — Bootstrap.** This repo, its labels/milestones, `docs/journal.md`, `.github/workflows/claude.yml`. Done directly (no pipeline exists yet to dogfood).

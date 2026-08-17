@@ -19,9 +19,14 @@ JOURNAL="docs/journal.md"
 # work onto the checked-out branch, so HEAD may carry the implementation
 # commit; pushing that HEAD would publish unreviewed work straight to main,
 # bypassing the PR entirely. Detach onto a pristine origin/main so the only
-# thing this script can ever push is its own journal commit.
+# thing this script can ever push is its own journal commit. -f is required,
+# not optional: a session can leave uncommitted index changes behind (e.g.
+# `git update-index --chmod=+x` to set an executable bit without a `chmod`
+# tool available), and a plain checkout refuses to switch branches over
+# those — silently skipping every journal entry for any run that actually
+# did real work, which is the opposite of what this script is for.
 git fetch -q origin main || { echo "fetch failed — skipping"; exit 0; }
-git checkout -q -B __journal origin/main || { echo "checkout failed — skipping"; exit 0; }
+git checkout -q -f -B __journal origin/main || { echo "checkout failed — skipping"; exit 0; }
 
 [ -f "$JOURNAL" ] || { echo "no $JOURNAL — skipping"; exit 0; }
 
