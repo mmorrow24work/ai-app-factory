@@ -19,12 +19,12 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 <!-- VELOCITY_START -->
 | Metric | Value |
 |---|---|
-| Issues with recorded metrics | 12 |
-| Successful runs | 9 |
-| Mean time per issue | 5m 37s |
-| Mean turns per issue | 92 |
-| Mean output tokens per issue | 30,248 |
-| Mean estimated cost per issue | $0.4632 |
+| Issues with recorded metrics | 13 |
+| Successful runs | 10 |
+| Mean time per issue | 5m 49s |
+| Mean turns per issue | 93 |
+| Mean output tokens per issue | 31,123 |
+| Mean estimated cost per issue | $0.4785 |
 <!-- VELOCITY_END -->
 
 ---
@@ -189,3 +189,16 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 - **Output Tokens:** 56481
 - **Estimated Cost:** $0.8488 (notional — see above)
 - **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/32004954282
+
+## 2026-08-17 — Issue #7: M6: Generate milestones and labeled issues from an approved design doc
+
+- **Result:** success
+- **PR:** —
+- **Milestone:** M6: Approve to milestones/issues
+- **Model:** claude-sonnet-5
+- **Execution Duration:** 496 seconds
+- **Turns:** 105
+- **Input Tokens:** 12555
+- **Output Tokens:** 41617
+- **Estimated Cost:** $0.6619 (notional — see above)
+- **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/32007259219
