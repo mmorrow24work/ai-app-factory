@@ -92,6 +92,51 @@ export function findLatestWorkflowRun(runs, workflowPath = '.github/workflows/cl
 	return runs.find((run) => run.path === workflowPath) ?? null;
 }
 
+/**
+ * Fires a `workflow_dispatch` event, e.g. to kick off draft-design-doc.yml from the /new
+ * page. Requires a token with `actions:write` on `repo` -- the unauthenticated rate limit
+ * doesn't apply here since this is always a write call.
+ *
+ * @param {string} repo "owner/name"
+ * @param {string} workflowFile e.g. "draft-design-doc.yml"
+ * @param {Record<string, string>} inputs
+ * @param {GithubRequestOpts & {ref?: string}} opts
+ * @returns {Promise<void>}
+ */
+export async function dispatchWorkflow(repo, workflowFile, inputs, { token, ref = 'main' } = {}) {
+	const response = await fetch(
+		`${GITHUB_API}/repos/${repo}/actions/workflows/${workflowFile}/dispatches`,
+		{
+			method: 'POST',
+			headers: { ...buildHeaders(token), 'Content-Type': 'application/json' },
+			body: JSON.stringify({ ref, inputs })
+		}
+	);
+	if (!response.ok) {
+		throw new Error(
+			`workflow_dispatch for ${workflowFile} on ${repo} failed: ${response.status} ${response.statusText}`
+		);
+	}
+}
+
+/**
+ * Lists the most recent workflow_dispatch runs of one workflow file -- used to find the run
+ * a just-fired {@link dispatchWorkflow} call created, since the dispatch response itself
+ * carries no run id (GitHub doesn't return one synchronously).
+ *
+ * @param {string} repo "owner/name"
+ * @param {string} workflowFile e.g. "draft-design-doc.yml"
+ * @param {GithubRequestOpts} [opts]
+ * @returns {Promise<WorkflowRun[]>}
+ */
+export async function listWorkflowRunsForWorkflow(repo, workflowFile, opts = {}) {
+	const data = await githubRequest(
+		`/repos/${repo}/actions/workflows/${workflowFile}/runs?event=workflow_dispatch&per_page=5`,
+		opts
+	);
+	return data.workflow_runs ?? [];
+}
+
 /** @typedef {{week: number, total: number, days: number[]}} CommitActivityWeek */
 /** @typedef {{ready: boolean, weeks: CommitActivityWeek[]}} CommitActivityResult */
 

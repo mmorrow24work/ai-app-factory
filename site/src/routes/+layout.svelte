@@ -55,13 +55,27 @@
 				</div>
 			{/each}
 
-			<div class="mt-auto border-t border-border pt-4">
+			<div class="mt-auto border-t border-border pt-4 flex flex-col gap-1">
+				<a
+					href={resolve('/new')}
+					aria-current={page.url.pathname === resolve('/new') ? 'page' : undefined}
+					class="block px-3 py-1.5 rounded text-sm text-muted-foreground no-underline hover:bg-accent hover:text-accent-foreground"
+				>
+					New project
+				</a>
 				<a
 					href={resolve('/how-it-works')}
 					aria-current={page.url.pathname === resolve('/how-it-works') ? 'page' : undefined}
 					class="block px-3 py-1.5 rounded text-sm text-muted-foreground no-underline hover:bg-accent hover:text-accent-foreground"
 				>
 					How it works
+				</a>
+				<a
+					href={resolve('/settings')}
+					aria-current={page.url.pathname === resolve('/settings') ? 'page' : undefined}
+					class="block px-3 py-1.5 rounded text-sm text-muted-foreground no-underline hover:bg-accent hover:text-accent-foreground"
+				>
+					Settings
 				</a>
 			</div>
 		</nav>
