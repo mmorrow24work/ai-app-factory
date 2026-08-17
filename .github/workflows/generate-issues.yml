@@ -25,56 +25,60 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
   id-token: write
 
 jobs:
-  resolve:
+  # claude-code-action does not support being triggered directly by a bare `push` event --
+  # it needs issue/PR/workflow_dispatch context to run against (confirmed the hard way: a
+  # push-triggered `generate` job here failed instantly with "Unsupported event type: push"
+  # during this repo's own M7 end-to-end dry run, 2026-08-17). So `push` never runs Claude
+  # itself; it only resolves which design doc(s) changed and re-fires this same workflow via
+  # `workflow_dispatch` once per doc -- the only path that actually reaches `generate` below.
+  dispatch:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    outputs:
-      docs_json: ${{ steps.docs.outputs.docs_json }}
-      count: ${{ steps.docs.outputs.count }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Resolve design doc(s) to process
-        id: docs
+      - name: Re-dispatch generate-issues per changed design doc
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            path="${{ inputs.path }}"
-            [ -f "$path" ] || { echo "generate-issues: path '$path' not found" >&2; exit 1; }
-            case "$path" in
-              docs/proposals/*.md) ;;
-              *) echo "generate-issues: path '$path' is not under docs/proposals/" >&2; exit 1 ;;
-            esac
-            paths="$path"
-          else
-            paths=$(git diff --name-only --diff-filter=AM \
-                      "${{ github.event.before }}" "${{ github.event.after }}" \
-                      -- 'docs/proposals/*.md' || true)
+          paths=$(git diff --name-only --diff-filter=AM \
+                    "${{ github.event.before }}" "${{ github.event.after }}" \
+                    -- 'docs/proposals/*.md' || true)
+          if [ -z "$paths" ]; then
+            echo "No design doc changes in this push -- nothing to dispatch"
+            exit 0
           fi
-
-          docs_json=$(printf '%s\n' "$paths" | jq -R . | jq -sc '[.[] | select(length > 0)]')
-          count=$(printf '%s' "$docs_json" | jq 'length')
-          echo "docs_json=$docs_json" >> "$GITHUB_OUTPUT"
-          echo "count=$count" >> "$GITHUB_OUTPUT"
-          echo "Design docs to process ($count): $docs_json"
+          while IFS= read -r path; do
+            [ -n "$path" ] || continue
+            echo "Dispatching generate-issues for $path"
+            gh workflow run generate-issues.yml --repo "$GITHUB_REPOSITORY" -f "path=$path"
+          done <<< "$paths"
 
   generate:
-    needs: resolve
-    if: needs.resolve.outputs.count != '0'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        doc: ${{ fromJson(needs.resolve.outputs.docs_json) }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Validate path
+        run: |
+          set -euo pipefail
+          path="${{ inputs.path }}"
+          [ -f "$path" ] || { echo "generate-issues: path '$path' not found" >&2; exit 1; }
+          case "$path" in
+            docs/proposals/*.md) ;;
+            *) echo "generate-issues: path '$path' is not under docs/proposals/" >&2; exit 1 ;;
+          esac
 
       - uses: anthropics/claude-code-action@v1
         id: claude
@@ -95,7 +99,7 @@ jobs:
 
             ## Design doc
 
-            ${{ matrix.doc }}
+            ${{ inputs.path }}
 
             ## Instructions
 
