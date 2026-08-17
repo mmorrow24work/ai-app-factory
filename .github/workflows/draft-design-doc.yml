@@ -1,0 +1,96 @@
+name: draft-design-doc
+
+# M5: turns a vague ask (project name + freeform requirements text, submitted from the
+# site's /new page) into a drafted design doc, opened as a PR against this repo's main for
+# human review. Only reachable via workflow_dispatch, fired by the browser using the PAT
+# pasted into /settings -- see DESIGN.md's "write path" for why this lives in Actions
+# rather than a server route (site/ is 100% static and never holds secrets).
+#
+# The target project's own repo doesn't exist yet at this stage -- DESIGN.md's M6
+# ("creating the target repo from the right template first, if new") only runs once this
+# PR is approved and merged -- so the draft is staged in *this* repo under docs/proposals/
+# until M6 promotes it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_name:
+        description: "Name of the new project"
+        required: true
+        type: string
+      requirements:
+        description: "Vague requirements / ask for the new project, as typed by the requester"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute slug
+        id: slug
+        run: |
+          set -euo pipefail
+          slug=$(printf '%s' "${{ inputs.project_name }}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
+          if [ -z "$slug" ]; then
+            echo "Project name '${{ inputs.project_name }}' produced an empty slug" >&2
+            exit 1
+          fi
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+
+      - uses: anthropics/claude-code-action@v1
+        id: claude
+        with:
+          # Same subscription-auth rationale as claude.yml: claude_code_oauth_token, not
+          # anthropic_api_key, so this doesn't bill API usage on top of the subscription.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          track_progress: false
+          base_branch: main
+          prompt: |
+            Draft a design doc for a new project proposed through the factory's intake form.
+
+            ## Project name
+
+            ${{ inputs.project_name }}
+
+            ## Requirements (as given -- vague or incomplete is expected; this is a first draft)
+
+            ${{ inputs.requirements }}
+
+            ## Instructions
+
+            You are running unattended. Nobody can approve a tool call or answer a
+            question mid-run, so asking will simply end the run with nothing done.
+            Work from what's given above.
+
+            1. Read this repository's own DESIGN.md as a style and structure example
+               (Problem / Goal / Non-goals / Architecture / Milestones) and follow its
+               shape, adapting sections to fit -- don't force a section that doesn't
+               apply to this project.
+            2. Create a new branch named `design/${{ steps.slug.outputs.slug }}`.
+            3. Write the drafted design doc to `docs/proposals/${{ steps.slug.outputs.slug }}.md`
+               on that branch. This repo's own root DESIGN.md is this repo's own design, not
+               a template to overwrite -- the new project doesn't have its own repo yet, so
+               the draft is staged here for review until a later workflow promotes it.
+            4. Open a pull request against `main` titled
+               `Design: ${{ inputs.project_name }}`, with a description that summarizes the
+               drafted design and invites review/edits in this PR. Do not merge it -- review
+               and editing happens in the PR's normal GitHub review UI.
+
+            This is a design proposal for a new project, not an implementation of an issue
+            in this repo -- there is no "Closes #N" line to add.
+          claude_args: >-
+            --model claude-opus-5
+            --max-turns 100
+            --allowedTools "Bash(git:*),Bash(gh:*),Bash(mkdir:*),Edit,Read,Write,Glob,Grep"
