@@ -99,9 +99,15 @@ jobs:
           # do NOT trigger other workflows, so CI would silently never run on
           # Claude's PRs. Falls back to GITHUB_TOKEN until GH_PAT is set.
           github_token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
-          # track_progress is only valid for issue/PR-triggered events — the
-          # action hard-fails on workflow_dispatch if it is set.
-          track_progress: ${{ github.event_name != 'workflow_dispatch' }}
+          # track_progress disabled unconditionally: on ai-app-factory's own
+          # runs, every issues/issue_comment-triggered run with it enabled
+          # pushed its branch but never actually created the PR object (fell
+          # back to a manual "Create PR" link instead), while every
+          # workflow_dispatch run (track_progress false) succeeded — 4/4 vs
+          # 2/2 across issues #1-#12 on 2026-08-17. Losing the live
+          # progress-checklist comment is a far smaller cost than silently
+          # losing PRs.
+          track_progress: false
           base_branch: "{{BASE_BRANCH}}"
           prompt: |
             Implement issue #${{ steps.cfg.outputs.number }} in this repository.
