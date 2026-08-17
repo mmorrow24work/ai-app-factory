@@ -19,12 +19,12 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 <!-- VELOCITY_START -->
 | Metric | Value |
 |---|---|
-| Issues with recorded metrics | 9 |
-| Successful runs | 6 |
-| Mean time per issue | 4m 17s |
-| Mean turns per issue | 72 |
-| Mean output tokens per issue | 22,988 |
-| Mean estimated cost per issue | $0.3455 |
+| Issues with recorded metrics | 10 |
+| Successful runs | 7 |
+| Mean time per issue | 4m 46s |
+| Mean turns per issue | 78 |
+| Mean output tokens per issue | 25,866 |
+| Mean estimated cost per issue | $0.3947 |
 <!-- VELOCITY_END -->
 
 ---
@@ -150,3 +150,16 @@ Recomputed by `.github/scripts/journal-entry.sh` on every run.
 - **Output Tokens:** 33570
 - **Estimated Cost:** $0.5042 (notional — see above)
 - **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31992320697
+
+## 2026-08-17 — Issue #3: M2: factory-new.sh and factory-secrets.sh CLI
+
+- **Result:** success
+- **PR:** #18
+- **Milestone:** M2: factory CLI
+- **Model:** claude-sonnet-5
+- **Execution Duration:** 547 seconds
+- **Turns:** 137
+- **Input Tokens:** 20381
+- **Output Tokens:** 51769
+- **Estimated Cost:** $0.8377 (notional — see above)
+- **Run:** https://github.com/mmorrow24work/ai-app-factory/actions/runs/31993587814
