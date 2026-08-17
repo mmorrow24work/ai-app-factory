@@ -54,6 +54,16 @@
 					</ul>
 				</div>
 			{/each}
+
+			<div class="mt-auto border-t border-border pt-4">
+				<a
+					href={resolve('/how-it-works')}
+					aria-current={page.url.pathname === resolve('/how-it-works') ? 'page' : undefined}
+					class="block px-3 py-1.5 rounded text-sm text-muted-foreground no-underline hover:bg-accent hover:text-accent-foreground"
+				>
+					How it works
+				</a>
+			</div>
 		</nav>
 
 		<main class="flex-1 min-w-0 px-4 py-6">
