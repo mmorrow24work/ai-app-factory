@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { groupProjectsByStatus } from '$lib/projects.js';
+	import ClaudeStatusBadge from '$lib/ClaudeStatusBadge.svelte';
 	import '../app.css';
 
 	let { children } = $props();
@@ -20,6 +21,9 @@
 <div class="flex flex-col min-h-screen">
 	<header class="flex items-center gap-3 px-4 py-3 border-b border-border">
 		<a href={resolve('/')} class="font-semibold text-foreground no-underline">ai-app-factory</a>
+		<div class="ml-auto">
+			<ClaudeStatusBadge />
+		</div>
 	</header>
 
 	<div class="flex flex-1 flex-col md:flex-row">
