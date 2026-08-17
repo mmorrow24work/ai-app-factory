@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { getStoredToken } from '$lib/githubToken.js';
 	import { dispatchWorkflow, listWorkflowRunsForWorkflow } from '$lib/github.js';
+	import Button from '$lib/ui/button.svelte';
 
 	const REPO = 'mmorrow24work/ai-app-factory';
 	const WORKFLOW_FILE = 'draft-design-doc.yml';
@@ -149,13 +150,9 @@
 				></textarea>
 			</label>
 			<div>
-				<button
-					type="submit"
-					disabled={status === 'dispatching' || !token}
-					class="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
-				>
+				<Button type="submit" disabled={status === 'dispatching' || !token}>
 					{status === 'dispatching' ? 'Starting…' : 'Draft design doc'}
-				</button>
+				</Button>
 			</div>
 			{#if status === 'error'}
 				<p class="text-sm text-destructive">{errorMessage}</p>
@@ -205,13 +202,9 @@
 				>
 					View pull requests ↗
 				</a>
-				<button
-					type="button"
-					onclick={reset}
-					class="ml-auto rounded-md border border-border px-3 py-1.5 text-sm text-foreground hover:bg-accent"
-				>
+				<Button type="button" variant="outline" className="ml-auto" onclick={reset}>
 					Start another
-				</button>
+				</Button>
 			</div>
 		</div>
 	{/if}
