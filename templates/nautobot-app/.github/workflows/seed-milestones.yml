@@ -25,6 +25,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+      - uses: actions/checkout@v4
+
       - name: Fetch the approved design doc from ai-app-factory
         id: doc
         run: |
@@ -97,3 +99,12 @@ jobs:
             --model claude-opus-5
             --max-turns 150
             --allowedTools "Bash(gh:*),Read,Glob,Grep"
+
+      - name: Upload execution transcript
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: transcript-seed-milestones-${{ github.run_id }}
+          path: ${{ steps.claude.outputs.execution_file }}
+          if-no-files-found: warn
+          retention-days: 90
