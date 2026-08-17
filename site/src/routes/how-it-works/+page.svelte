@@ -11,9 +11,11 @@
 	<h1 class="text-2xl font-semibold text-foreground">How it works</h1>
 	<p class="mt-2 text-muted-foreground">
 		Every tracked project runs on the same unattended build pipeline, "Lane B". The diagram below
-		shows what's actually live today versus what's still planned; the reference panel below that
-		lists the real <code class="text-foreground">gh</code> commands the system runs, sourced from this
-		repo's own workflow and script files.
+		shows the full loop as built: per-issue execution, plus the ask → design → provision → seed loop
+		that turns a vague idea into a repo full of claude-go-labeled issues. Two steps in that loop are
+		human approval gates, not automated hops — marked with a person icon. The reference panel below
+		that lists the real <code class="text-foreground">gh</code> commands the system runs, sourced from
+		this repo's own workflow and script files.
 	</p>
 
 	<section class="mt-8">
@@ -30,26 +32,17 @@
 			gh CLI command reference
 		</h2>
 		<p class="mt-2 text-sm text-muted-foreground">
-			Grouped by pipeline stage. <span class="text-foreground">Live</span> stages run against files
-			that exist in this repo today; <span class="text-foreground">planned</span> stages don't have
-			a source file yet and are documented from
-			<code class="text-foreground">DESIGN.md</code>'s milestone list instead.
+			Grouped by pipeline stage, every command sourced from a file that exists in this repo today —
+			no stage here is still hypothetical.
 		</p>
 
 		<div class="mt-4 flex flex-col gap-3">
 			{#each CLI_STAGES as group (group.stage)}
-				<details class="rounded-lg border border-border bg-card" open={group.status === 'live'}>
+				<details class="rounded-lg border border-border bg-card" open>
 					<summary
 						class="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-foreground"
 					>
 						<span>{group.stage}</span>
-						<span
-							class="rounded-full px-2 py-0.5 text-xs font-medium {group.status === 'live'
-								? 'bg-primary text-primary-foreground'
-								: 'border border-dashed border-muted-foreground text-muted-foreground'}"
-						>
-							{group.status === 'live' ? 'Live' : 'Planned'}
-						</span>
 					</summary>
 					<div class="flex flex-col gap-4 border-t border-border px-4 py-4">
 						{#each group.commands as cmd (cmd.command)}

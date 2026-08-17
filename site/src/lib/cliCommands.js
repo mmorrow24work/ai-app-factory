@@ -1,12 +1,11 @@
-// Reference list of `gh` commands the Lane B pipeline actually runs (or will run once
-// M2/M5/M6 land). "live" entries are sourced from files that exist in this repo today —
-// see each entry's `source` field. "planned" entries have no source file yet (scripts/ and
-// generate-issues.yml don't exist until M2/M6), so they're documented from DESIGN.md's
-// milestone descriptions instead and must not be presented as functional.
+// Reference list of `gh`/script commands the Lane B pipeline actually runs. Every entry below
+// is sourced from a file that exists in this repo today — see each entry's `source` field. There
+// is no "planned" status anymore: M2 (scripts/), M5 (draft-design-doc.yml), and M6
+// (generate-issues.yml + the seed-milestones.yml template) have all shipped. See
+// docs/adr/0001-design-to-issues-loop.md for the full loop these commands walk through.
 export const CLI_STAGES = [
 	{
 		stage: 'Triggering a run',
-		status: 'live',
 		commands: [
 			{
 				command: 'gh issue edit <n> --add-label claude-go -R <owner>/<repo>',
@@ -30,7 +29,6 @@ export const CLI_STAGES = [
 	},
 	{
 		stage: 'Monitoring runs',
-		status: 'live',
 		commands: [
 			{
 				command: 'gh run list -R <owner>/<repo>',
@@ -59,62 +57,80 @@ export const CLI_STAGES = [
 		]
 	},
 	{
-		stage: 'Repo setup',
-		status: 'planned',
+		stage: 'Ask → design doc',
 		commands: [
 			{
-				command: 'gh repo create <owner>/<repo> --public --source=. --push',
-				who: 'Human, via factory-new.sh',
-				when: 'M2 — creates a new project repo from a template and pushes the initial scaffold.',
-				source: 'planned — scripts/ does not exist yet'
+				command:
+					'gh workflow run draft-design-doc.yml -R mmorrow24work/ai-app-factory -f project_name="<name>" -f requirements="<ask>"',
+				who: 'Human, via the `/new` page (PAT pasted into /settings authenticates the call)',
+				when: 'M5 — Opus drafts docs/proposals/<slug>.md and opens a "Design: <name>" PR against main for review.',
+				source: '.github/workflows/draft-design-doc.yml'
 			}
 		]
 	},
 	{
-		stage: 'Labels, milestones & issues',
-		status: 'planned',
+		stage: 'Review → provisioning plan',
 		commands: [
 			{
-				command: 'gh label create <name> --color <hex> --description "<desc>"',
-				who: 'Human, via factory-new.sh',
-				when: 'M2 — applies the templates/_shared/labels.json taxonomy to a freshly created repo.',
-				source: 'planned — scripts/ does not exist yet'
+				command: 'gh pr merge <n> --repo mmorrow24work/ai-app-factory',
+				who: 'Human — approval gate #1',
+				when: "Reviews/edits the drafted design doc in GitHub's normal PR review UI, then merges it. The merge (a push to main touching docs/proposals/*.md) is what fires generate-issues.yml next.",
+				source: 'GitHub PR review UI — no script'
+			},
+			{
+				command:
+					'gh workflow run generate-issues.yml -R mmorrow24work/ai-app-factory -f path=docs/proposals/<slug>.md',
+				who: 'Workflow (generate-issues.yml) — auto-fired on merge; this is the manual re-run form',
+				when: 'M6 — reads the merged design doc and opens a "Provision mmorrow24work/<slug>" issue in ai-app-factory with the exact commands to run next. Creates nothing else and touches no other repo.',
+				source: '.github/workflows/generate-issues.yml'
+			}
+		]
+	},
+	{
+		stage: 'Provision the repo',
+		commands: [
+			{
+				command:
+					'scripts/factory-new.sh <type> <repo-name> --ask "<summary>" [--set KEY=VALUE ...]',
+				who: 'Human — approval gate #2, own gh auth',
+				when: 'M2 — scaffolds the repo from a template, runs `gh repo create`, applies templates/_shared/labels.json, and appends the project to projects.json (locally — does not push).',
+				source: 'scripts/factory-new.sh'
+			},
+			{
+				command: 'scripts/factory-secrets.sh <repo-name>',
+				who: 'Human — same gate as above',
+				when: 'M2 — sets CLAUDE_CODE_OAUTH_TOKEN (from the local .env store) and a freshly minted, never-persisted GH_PAT (prompted interactively) as Actions secrets on the new repo.',
+				source: 'scripts/factory-secrets.sh'
+			},
+			{
+				command:
+					'git add projects.json && git commit -m "Register mmorrow24work/<slug>" && git push',
+				who: 'Human — same gate as above',
+				when: 'Pushes the projects.json entry factory-new.sh wrote locally, so the dashboard picks up the new project.',
+				source: 'scripts/factory-new.sh writes projects.json; this command pushes it'
+			}
+		]
+	},
+	{
+		stage: 'Seed milestones & issues',
+		commands: [
+			{
+				command: 'gh workflow run seed-milestones.yml -R mmorrow24work/<repo-name>',
+				who: 'Human — manual trigger, no inputs (Actions tab → seed-milestones → Run workflow works the same way)',
+				when: "M6 — fetches the approved design doc from ai-app-factory's public main over an unauthenticated raw.githubusercontent.com request, then creates one milestone per doc milestone and one or more claude-go-labeled issues per milestone, using the new repo's own secrets.",
+				source: 'templates/<type>/.github/workflows/seed-milestones.yml'
 			},
 			{
 				command: 'gh api repos/<owner>/<repo>/milestones -f title=... -f description=...',
-				who: 'Workflow (generate-issues.yml)',
-				when: 'M6 — turns an approved DESIGN.md into milestones on merge.',
-				source: 'planned — .github/workflows/generate-issues.yml does not exist yet'
+				who: 'Workflow (seed-milestones.yml)',
+				when: 'Creates one GitHub milestone per "## Milestones" bullet in the design doc; skips any title that already exists.',
+				source: 'templates/<type>/.github/workflows/seed-milestones.yml'
 			},
 			{
-				command: 'gh issue create --title ... --milestone ... --body ...',
-				who: 'Workflow (generate-issues.yml)',
-				when: 'M6 — files one issue per DESIGN.md work item.',
-				source: 'planned — .github/workflows/generate-issues.yml does not exist yet'
-			},
-			{
-				command: 'gh issue edit <n> --add-label claude-go',
-				who: 'Workflow (generate-issues.yml)',
-				when: 'M6 — labels each generated issue so it lands directly in Lane B.',
-				source: 'planned — .github/workflows/generate-issues.yml does not exist yet'
-			}
-		]
-	},
-	{
-		stage: 'Secrets',
-		status: 'planned',
-		commands: [
-			{
-				command: 'gh secret set CLAUDE_CODE_OAUTH_TOKEN -R <owner>/<repo>',
-				who: 'Human, via factory-secrets.sh',
-				when: "M2 — provisions the subscription token a new project's claude.yml needs.",
-				source: 'planned — scripts/ does not exist yet'
-			},
-			{
-				command: 'gh secret set GH_PAT -R <owner>/<repo>',
-				who: 'Human, via factory-secrets.sh',
-				when: "M2 — optional PAT so Claude's PRs trigger other workflows (the default GITHUB_TOKEN cannot).",
-				source: 'planned — scripts/ does not exist yet'
+				command: 'gh issue create --title ... --milestone "M<n>: <title>" --body ...',
+				who: 'Workflow (seed-milestones.yml)',
+				when: 'Files one or more issues per milestone with an acceptance-criteria checklist; applies claude-go only to issues concrete enough for the unattended pipeline.',
+				source: 'templates/<type>/.github/workflows/seed-milestones.yml'
 			}
 		]
 	}
