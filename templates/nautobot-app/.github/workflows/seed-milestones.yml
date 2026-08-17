@@ -1,0 +1,99 @@
+name: seed-milestones
+
+# M6 (redesigned 2026-08-17): turns {{PROJECT_NAME}}'s own approved design doc into GitHub
+# milestones and claude-go-labeled issues. Runs with THIS repo's own secrets, not
+# ai-app-factory's -- ai-app-factory's own automation never reaches into another repo (see
+# its DESIGN.md, "GH_PAT: token strategy"). The design doc lives in ai-app-factory's
+# docs/proposals/<repo-name>.md; fetched over an unauthenticated public raw request, since
+# ai-app-factory is public and no cross-repo credential should be needed just to read it.
+#
+# Human-triggered only, once, via workflow_dispatch with no inputs -- nothing here runs
+# automatically. That's deliberate: it's the second of two approval gates (after merging
+# the design-doc PR in ai-app-factory) between "someone had an idea" and "tokens start
+# getting spent building it" -- see ai-app-factory's docs/adr/0001-design-to-issues-loop.md.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Fetch the approved design doc from ai-app-factory
+        id: doc
+        run: |
+          set -euo pipefail
+          slug="${{ github.event.repository.name }}"
+          url="https://raw.githubusercontent.com/mmorrow24work/ai-app-factory/main/docs/proposals/${slug}.md"
+          content=$(curl -fsSL "$url") || {
+            echo "seed-milestones: could not fetch $url" >&2
+            echo "Has the design doc PR for this project been merged in ai-app-factory, and does its filename match this repo's name ('${slug}.md')?" >&2
+            exit 1
+          }
+          delim="EOF_$(openssl rand -hex 8)"
+          {
+            echo "content<<$delim"
+            printf '%s\n' "$content"
+            echo "$delim"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: anthropics/claude-code-action@v1
+        id: claude
+        with:
+          # Same subscription-auth rationale as every other workflow in this repo:
+          # claude_code_oauth_token, not anthropic_api_key.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          track_progress: false
+          base_branch: "{{BASE_BRANCH}}"
+          prompt: |
+            Seed this repository's milestones and issues from its own approved design doc.
+
+            ## Design doc (ai-app-factory's docs/proposals/${{ github.event.repository.name }}.md)
+
+            ${{ steps.doc.outputs.content }}
+
+            ## Instructions
+
+            You are running unattended. Nobody can approve a tool call or answer a
+            question mid-run, so asking will simply end the run with nothing done. Work
+            from what's given above.
+
+            1. Find the doc's "## Milestones" section -- a bulleted list, one bullet per
+               milestone (e.g. "- **M0 — Bootstrap.** ..."). Create one GitHub milestone
+               per bullet in THIS repo (`gh api repos/${{ github.repository }}/milestones
+               -f title=... -f description=...`), titled `"M<n>: <short title>"` matching
+               the bullet's own bold lead-in, with the rest of the bullet's text as the
+               description. Skip any milestone whose title already exists (idempotent
+               re-run -- this workflow can be fired more than once, e.g. after editing the
+               design doc).
+
+            2. For each milestone, create one or more issues in THIS repo
+               (`gh issue create`) with a short, concrete acceptance-criteria checklist in
+               the body -- follow this repo's own CLAUDE.md (read it first) for
+               conventions and definition of done, and match its level of detail and
+               phrasing. Apply the `claude-go` label (already present in this repo from
+               its template) to issues that are concrete and unambiguous enough for the
+               unattended pipeline to attempt; leave design-heavy or genuinely ambiguous
+               issues unlabeled or `lane:manual` instead -- do not label everything
+               `claude-go` by default. Attach each issue to its milestone with
+               `--milestone "M<n>: <short title>"`. Skip creating an issue that already
+               exists with the same title (idempotent re-run).
+
+            3. This is the only run of this workflow expected under normal use -- once
+               finished, THIS repo's own `claude.yml` picks up whichever issues were
+               labeled `claude-go` above and starts implementing them unattended, with no
+               further action needed here.
+
+            There is no "Closes #N" line to add -- this isn't implementing an issue, it's
+            creating them.
+          claude_args: >-
+            --model claude-opus-5
+            --max-turns 150
+            --allowedTools "Bash(gh:*),Read,Glob,Grep"

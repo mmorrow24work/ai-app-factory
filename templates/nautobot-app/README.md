@@ -10,7 +10,8 @@ README.md.tmpl                     Becomes the new repo's README.md
 pyproject.toml.tmpl                Becomes the new repo's pyproject.toml
 .pre-commit-config.yaml            Copied as-is — black/ruff pre-commit hooks
 .env.example                       Copied as-is; consumer fills in real values locally
-.github/workflows/claude.yml       Lane B driver — copied with placeholders filled in; installs Poetry and a real Nautobot into the runner so API decisions are verifiable, not guessed
+.github/workflows/claude.yml        Lane B driver — copied with placeholders filled in; installs Poetry and a real Nautobot into the runner so API decisions are verifiable, not guessed
+.github/workflows/seed-milestones.yml  Turns the approved design doc into milestones/issues — human-triggered once, see ADR 0001 in ai-app-factory
 .github/scripts/journal-entry.sh   Metrics-append script — copied as-is, already generic
 docs/journal.md                    Empty journal skeleton — copied as-is
 ```
@@ -28,7 +29,7 @@ docs/journal.md                    Empty journal skeleton — copied as-is
 | `{{APP_NAME}}` | The Nautobot App's distribution name (e.g. `nautobot-widget-tracker`) |
 | `{{PYTHON_PACKAGE}}` | The Python package name (e.g. `nautobot_widget_tracker`) |
 | `{{AUTHOR_NAME}}` | Author name for `pyproject.toml` |
-| `{{NAUTOBOT_VERSION}}` | Poetry version constraint for the `nautobot` dependency (e.g. `^3.0.0`) |
+| `{{NAUTOBOT_VERSION}}` | Poetry version constraint for the `nautobot` dependency (default: `^3.0.0`) |
 | `{{ADDITIONAL_CONVENTIONS}}` | Any project-specific conventions beyond the shared skeleton |
 | `{{BASE_BRANCH}}` | Default branch the Lane B driver targets (usually `main`) |
 | `{{OWNER_GITHUB_HANDLE}}` | GitHub username of the human owner mentioned in the Support & Handoff section (defaults to `mmorrow24work` if unset) |

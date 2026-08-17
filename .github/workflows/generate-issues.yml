@@ -1,10 +1,16 @@
 name: generate-issues
 
-# M6: on merge of an approved "Design: <project name>" PR (see draft-design-doc.yml, M5),
-# turns docs/proposals/<slug>.md into a real project -- creates the target repo from the
-# right template if it doesn't exist yet (scripts/factory-new.sh, M2), then generates
-# GitHub milestones and claude-go-labeled issues in that repo from the design doc's own
-# Milestones section.
+# M6 (redesigned 2026-08-17, see DESIGN.md's "GH_PAT: token strategy"): on merge of an
+# approved "Design: <project name>" PR (see draft-design-doc.yml, M5), reads
+# docs/proposals/<slug>.md and opens a provisioning issue in *this* repo telling a human
+# what to run -- it does NOT create the target repo or touch any other repo itself. That
+# keeps ai-app-factory's own GH_PAT scoped to ai-app-factory alone (no Administration, no
+# All-repositories), and adds a second human approval gate -- provisioning, separate from
+# approving the design doc -- before any tokens get spent on the new project. The human
+# runs scripts/factory-new.sh + scripts/factory-secrets.sh locally (their own gh auth, no
+# stored credential involved), then manually fires the new repo's own seed-milestones.yml,
+# which turns the design doc into milestones + claude-go issues using that repo's own
+# secrets. Full loop documented in docs/adr/0001-design-to-issues-loop.md.
 #
 # Triggers on push to main touching docs/proposals/*.md (a merged design PR), or manually
 # via workflow_dispatch with an explicit path -- e.g. to regenerate after an edit, or to
@@ -23,8 +29,8 @@ on:
         type: string
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  issues: write
   actions: write
   id-token: write
 
@@ -64,7 +70,7 @@ jobs:
   generate:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -86,16 +92,13 @@ jobs:
           # Same subscription-auth rationale as the other workflows in this repo:
           # claude_code_oauth_token, not anthropic_api_key.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # This job's gh/git calls target a *different* repo than the one the workflow
-          # runs in, so GITHUB_TOKEN's repo-scoped permissions aren't enough -- GH_PAT is
-          # required here, not just preferred.
           github_token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
           track_progress: false
           base_branch: main
           prompt: |
-            Turn an approved design doc into a real project: create its GitHub repo (if
-            new), then generate GitHub milestones and labeled issues from the design doc's
-            own Milestones section.
+            Draft a provisioning plan for an approved design doc and open it as an issue
+            in this repo (ai-app-factory) for a human to act on. Do not create any repo,
+            do not run scripts/factory-new.sh, do not touch any repo other than this one.
 
             ## Design doc
 
@@ -118,69 +121,40 @@ jobs:
                of a Nautobot app/job, a NetBox plugin, or neither (default
                `custom-script`).
 
-            3. Check whether the target repo already exists:
-               `gh repo view mmorrow24work/<slug>`.
-               - If it does NOT exist, create it from the template via
-                 `scripts/factory-new.sh <type> <slug> --ask "<one-line summary of the
-                 doc's Problem/Goal>"`. This is non-interactive (no terminal to prompt on)
-                 so `--ask` is required. `TEST_COMMAND`, `NAUTOBOT_VERSION`, and
-                 `NETBOX_VERSION` all have built-in defaults (pytest / ^3.0.0 / v4.5.0) --
-                 override with `--set KEY=VALUE` only if the design doc states a different
-                 value. `custom-script`'s `ENTRY_POINT` has NO default and always needs
-                 `--set ENTRY_POINT=<path>` -- derive the path from the doc's Architecture
-                 section (e.g. this doc might name the main file outright); if the doc
-                 truly doesn't say, run `scripts/factory-new.sh custom-script <slug> --ask
-                 "..." --dry-run` first without `--set` to see exactly which placeholders
-                 it demands, rather than guessing blind. `factory-new.sh` creates the repo,
-                 applies the shared label taxonomy, and updates `projects.json` in this
-                 checkout (not yet committed -- see step 6).
-               - If it already exists, skip repo creation. This run may be a re-run (e.g.
-                 workflow_dispatch against an already-processed doc) -- treat anything
-                 already in place as done, not an error.
+            3. Work out the exact `scripts/factory-new.sh` invocation a human should run,
+               including every `--set KEY=VALUE` its required placeholders need:
+               `custom-script` always needs `--set ENTRY_POINT=<path>` (no default exists
+               for a script's main file -- derive it from the doc's Architecture section,
+               which usually names the main file outright); `nautobot-app`/`netbox-plugin`
+               have built-in defaults for `NAUTOBOT_VERSION`/`NETBOX_VERSION` and only need
+               `--set` if the doc states a different version explicitly. `--ask` should be
+               a one-line summary of the doc's Problem/Goal.
 
-            4. Create GitHub milestones in the target repo from the design doc's
-               "## Milestones" list, one per bullet. Use this repo's own milestones
-               (`gh api repos/mmorrow24work/ai-app-factory/milestones`) as the title
-               format to match: `"M<n>: <short title>"`, e.g. `"M0: Bootstrap"` derived
-               from a doc bullet like `"- **M0 — Bootstrap.** This repo, its
-               labels/milestones..."`. Description = the rest of the bullet's text. Skip
-               any milestone that already exists in the target repo (idempotent re-run).
+            4. Check whether an open issue in this repo already has the title
+               `Provision mmorrow24work/<slug>` (`gh issue list --repo
+               mmorrow24work/ai-app-factory --search "Provision mmorrow24work/<slug> in:title"`)
+               -- if so, this doc has already been processed; do nothing further (idempotent
+               re-run, e.g. from a workflow_dispatch retry).
 
-            5. For each milestone, create one or more GitHub issues in the target repo via
-               `gh issue create --repo mmorrow24work/<slug>`, each with a short acceptance
-               criteria checklist in the body. Use this repo's own seed issues as the
-               quality bar to match -- read a few with
-               `gh issue view <n> --repo mmorrow24work/ai-app-factory --json title,body`
-               (issues #1-#12 cover M0-M3) for the level of detail and phrasing expected.
-               Apply the `claude-go` label (already present in the target repo from
-               `factory-new.sh`'s label sync) to issues that are concrete and
-               unambiguous enough for the unattended pipeline to attempt; leave design-
-               heavy or ambiguous issues unlabeled (or `lane:manual`), matching how this
-               repo's own issue #7 -- the one this run is implementing -- has no
-               `claude-go` label. Attach each issue to its milestone with
-               `--milestone "M<n>: <short title>"`. Skip creating an issue that already
-               exists with the same title in the target repo (idempotent re-run).
+            5. Otherwise, open that issue (`gh issue create --repo mmorrow24work/ai-app-factory`,
+               no `claude-go` label -- this always needs a human) with a body that gives the
+               exact commands to run, in order:
+               ```
+               scripts/factory-new.sh <type> <slug> --ask "<summary>" [--set KEY=VALUE ...]
+               scripts/factory-secrets.sh <slug>
+               git add projects.json && git commit -m "Register mmorrow24work/<slug>" && git push
+               ```
+               followed by a note that `factory-new.sh` writes `projects.json` locally but
+               does not commit/push it (the third command above does), and a closing
+               instruction: once those three commands have run, manually trigger
+               `seed-milestones.yml` in the new repo (Actions tab -> seed-milestones -> Run
+               workflow) to turn this design doc into milestones and `claude-go` issues --
+               it reads the doc directly from this repo's `main` branch, no further input
+               needed.
 
-            6. Ensure `projects.json` in *this* repo (ai-app-factory, the checkout you're
-               already in) has an entry for `mmorrow24work/<slug>` -- `factory-new.sh`
-               already wrote it if you ran step 3's create path, but that change is only
-               local to this checkout, not yet committed. If there's no local change and
-               no existing entry (the repo pre-existed without ever being registered),
-               add one yourself in the same shape as the existing entries (`repo`, `type`,
-               `createdAt`, `status: "active"`, `ask`).
-               If `git status --porcelain -- projects.json` shows a change, commit it and
-               open a pull request against `main` in this repo (ai-app-factory) titled
-               `Register mmorrow24work/<slug> in dashboard`, explaining this is a
-               mechanical follow-through of the design doc already approved in the
-               "Design: <name>" PR, not a new design decision. Do not merge it yourself --
-               this repo's convention keeps changes to `main` flowing through PR review
-               (the one exception, `docs/journal.md`, is documented in CLAUDE.md and
-               doesn't apply here). If `projects.json` already has the entry and there's
-               nothing to commit, skip this step.
-
-            This is about the *target* project's repo, not an issue in this repo -- there
-            is no "Closes #N" line to add anywhere.
+            This is a provisioning plan for a human to execute, not code to write and not
+            an issue to close in this repo -- there is no "Closes #N" line to add anywhere.
           claude_args: >-
             --model claude-opus-5
-            --max-turns 150
-            --allowedTools "Bash(gh:*),Bash(git:*),Bash(jq:*),Bash(scripts/factory-new.sh:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Edit,Read,Write,Glob,Grep"
+            --max-turns 50
+            --allowedTools "Bash(gh:*),Read,Glob,Grep"

@@ -10,7 +10,8 @@ README.md.tmpl                     Becomes the new repo's README.md
 pyproject.toml.tmpl                Becomes the new repo's pyproject.toml
 .pre-commit-config.yaml            Copied as-is — ruff lint/format pre-commit hooks
 .env.example                       Copied as-is; consumer fills in real values locally
-.github/workflows/claude.yml       Lane B driver — copied with placeholders filled in; clones NetBox and installs the plugin into the runner so API decisions are verifiable, not guessed
+.github/workflows/claude.yml        Lane B driver — copied with placeholders filled in; clones NetBox and installs the plugin into the runner so API decisions are verifiable, not guessed
+.github/workflows/seed-milestones.yml  Turns the approved design doc into milestones/issues — human-triggered once, see ADR 0001 in ai-app-factory
 .github/scripts/journal-entry.sh   Metrics-append script — copied as-is, already generic
 docs/journal.md                    Empty journal skeleton — copied as-is
 ```
@@ -28,7 +29,7 @@ docs/journal.md                    Empty journal skeleton — copied as-is
 | `{{APP_NAME}}` | The plugin's distribution name (e.g. `netbox-widget-tracker`) |
 | `{{PYTHON_PACKAGE}}` | The Python package name (e.g. `netbox_widget_tracker`) |
 | `{{AUTHOR_NAME}}` | Author name for `pyproject.toml` |
-| `{{NETBOX_VERSION}}` | Git tag/branch of NetBox the Lane B driver installs to verify APIs against (e.g. `v4.5.0`) |
+| `{{NETBOX_VERSION}}` | Git tag/branch of NetBox the Lane B driver installs to verify APIs against (default: `v4.5.0`) |
 | `{{ADDITIONAL_CONVENTIONS}}` | Any project-specific conventions beyond the shared skeleton |
 | `{{BASE_BRANCH}}` | Default branch the Lane B driver targets (usually `main`) |
 | `{{OWNER_GITHUB_HANDLE}}` | GitHub username of the human owner mentioned in the Support & Handoff section (defaults to `mmorrow24work` if unset) |
