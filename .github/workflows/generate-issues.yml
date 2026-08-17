@@ -1,0 +1,174 @@
+name: generate-issues
+
+# M6: on merge of an approved "Design: <project name>" PR (see draft-design-doc.yml, M5),
+# turns docs/proposals/<slug>.md into a real project -- creates the target repo from the
+# right template if it doesn't exist yet (scripts/factory-new.sh, M2), then generates
+# GitHub milestones and claude-go-labeled issues in that repo from the design doc's own
+# Milestones section.
+#
+# Triggers on push to main touching docs/proposals/*.md (a merged design PR), or manually
+# via workflow_dispatch with an explicit path -- e.g. to regenerate after an edit, or to
+# run a design doc that was merged before this workflow existed.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/proposals/*.md"
+  workflow_dispatch:
+    inputs:
+      path:
+        description: "Path to the approved design doc (e.g. docs/proposals/my-project.md)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      docs_json: ${{ steps.docs.outputs.docs_json }}
+      count: ${{ steps.docs.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve design doc(s) to process
+        id: docs
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            path="${{ inputs.path }}"
+            [ -f "$path" ] || { echo "generate-issues: path '$path' not found" >&2; exit 1; }
+            case "$path" in
+              docs/proposals/*.md) ;;
+              *) echo "generate-issues: path '$path' is not under docs/proposals/" >&2; exit 1 ;;
+            esac
+            paths="$path"
+          else
+            paths=$(git diff --name-only --diff-filter=AM \
+                      "${{ github.event.before }}" "${{ github.event.after }}" \
+                      -- 'docs/proposals/*.md' || true)
+          fi
+
+          docs_json=$(printf '%s\n' "$paths" | jq -R . | jq -sc '[.[] | select(length > 0)]')
+          count=$(printf '%s' "$docs_json" | jq 'length')
+          echo "docs_json=$docs_json" >> "$GITHUB_OUTPUT"
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          echo "Design docs to process ($count): $docs_json"
+
+  generate:
+    needs: resolve
+    if: needs.resolve.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        doc: ${{ fromJson(needs.resolve.outputs.docs_json) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        id: claude
+        with:
+          # Same subscription-auth rationale as the other workflows in this repo:
+          # claude_code_oauth_token, not anthropic_api_key.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # This job's gh/git calls target a *different* repo than the one the workflow
+          # runs in, so GITHUB_TOKEN's repo-scoped permissions aren't enough -- GH_PAT is
+          # required here, not just preferred.
+          github_token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          track_progress: false
+          base_branch: main
+          prompt: |
+            Turn an approved design doc into a real project: create its GitHub repo (if
+            new), then generate GitHub milestones and labeled issues from the design doc's
+            own Milestones section.
+
+            ## Design doc
+
+            ${{ matrix.doc }}
+
+            ## Instructions
+
+            You are running unattended. Nobody can approve a tool call or answer a
+            question mid-run, so asking will simply end the run with nothing done. Work
+            from what's given below.
+
+            1. Read the design doc at the path above. It follows this repo's own
+               DESIGN.md shape (Problem / Goal / Non-goals / Architecture / Milestones).
+               The project name is the doc's H1 ("# Design: <name>"); the repo-name slug
+               is the doc's filename without extension.
+
+            2. Determine the project type from the doc's content (Goal/Architecture
+               sections): one of `nautobot-app`, `netbox-plugin`, `custom-script`
+               (matching `templates/`'s three types) -- infer from context, e.g. mentions
+               of a Nautobot app/job, a NetBox plugin, or neither (default
+               `custom-script`).
+
+            3. Check whether the target repo already exists:
+               `gh repo view mmorrow24work/<slug>`.
+               - If it does NOT exist, create it from the template via
+                 `scripts/factory-new.sh <type> <slug> --ask "<one-line summary of the
+                 doc's Problem/Goal>"`. This is non-interactive (no terminal to prompt on)
+                 so `--ask` is required. It creates the repo, applies the shared label
+                 taxonomy, and updates `projects.json` in this checkout (not yet
+                 committed -- see step 6).
+               - If it already exists, skip repo creation. This run may be a re-run (e.g.
+                 workflow_dispatch against an already-processed doc) -- treat anything
+                 already in place as done, not an error.
+
+            4. Create GitHub milestones in the target repo from the design doc's
+               "## Milestones" list, one per bullet. Use this repo's own milestones
+               (`gh api repos/mmorrow24work/ai-app-factory/milestones`) as the title
+               format to match: `"M<n>: <short title>"`, e.g. `"M0: Bootstrap"` derived
+               from a doc bullet like `"- **M0 — Bootstrap.** This repo, its
+               labels/milestones..."`. Description = the rest of the bullet's text. Skip
+               any milestone that already exists in the target repo (idempotent re-run).
+
+            5. For each milestone, create one or more GitHub issues in the target repo via
+               `gh issue create --repo mmorrow24work/<slug>`, each with a short acceptance
+               criteria checklist in the body. Use this repo's own seed issues as the
+               quality bar to match -- read a few with
+               `gh issue view <n> --repo mmorrow24work/ai-app-factory --json title,body`
+               (issues #1-#12 cover M0-M3) for the level of detail and phrasing expected.
+               Apply the `claude-go` label (already present in the target repo from
+               `factory-new.sh`'s label sync) to issues that are concrete and
+               unambiguous enough for the unattended pipeline to attempt; leave design-
+               heavy or ambiguous issues unlabeled (or `lane:manual`), matching how this
+               repo's own issue #7 -- the one this run is implementing -- has no
+               `claude-go` label. Attach each issue to its milestone with
+               `--milestone "M<n>: <short title>"`. Skip creating an issue that already
+               exists with the same title in the target repo (idempotent re-run).
+
+            6. Ensure `projects.json` in *this* repo (ai-app-factory, the checkout you're
+               already in) has an entry for `mmorrow24work/<slug>` -- `factory-new.sh`
+               already wrote it if you ran step 3's create path, but that change is only
+               local to this checkout, not yet committed. If there's no local change and
+               no existing entry (the repo pre-existed without ever being registered),
+               add one yourself in the same shape as the existing entries (`repo`, `type`,
+               `createdAt`, `status: "active"`, `ask`).
+               If `git status --porcelain -- projects.json` shows a change, commit it and
+               open a pull request against `main` in this repo (ai-app-factory) titled
+               `Register mmorrow24work/<slug> in dashboard`, explaining this is a
+               mechanical follow-through of the design doc already approved in the
+               "Design: <name>" PR, not a new design decision. Do not merge it yourself --
+               this repo's convention keeps changes to `main` flowing through PR review
+               (the one exception, `docs/journal.md`, is documented in CLAUDE.md and
+               doesn't apply here). If `projects.json` already has the entry and there's
+               nothing to commit, skip this step.
+
+            This is about the *target* project's repo, not an issue in this repo -- there
+            is no "Closes #N" line to add anywhere.
+          claude_args: >-
+            --model claude-opus-5
+            --max-turns 150
+            --allowedTools "Bash(gh:*),Bash(git:*),Bash(jq:*),Bash(scripts/factory-new.sh:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Edit,Read,Write,Glob,Grep"
