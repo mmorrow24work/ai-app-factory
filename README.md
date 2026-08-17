@@ -7,4 +7,66 @@ Two things live here:
 1. **Templates + CLI** (`templates/`, `scripts/`) — the repo-scaffolding boilerplate every one of these projects has needed by hand: a `claude-go`/`model:opus`/`lane:*` label taxonomy, a `.github/workflows/claude.yml` that runs `claude-code-action` per labeled issue, a `docs/journal.md` metrics log, secrets (`CLAUDE_CODE_OAUTH_TOKEN`, `GH_PAT`), and a `.env`. Packaged as `nautobot-app`, `netbox-plugin`, and `custom-script` project types.
 2. **The factory site** (`site/`) — a static SvelteKit dashboard (GitHub Pages) that takes a vague ask, drafts a design doc via Opus, and — once you approve it — generates the GitHub milestones/issues that drive the pipeline above. Every tracked project shows up in a grouped sidebar with its original ask, elapsed time, token-burn history (from `docs/journal.md`), latest Actions run status, and a commit heatmap.
 
-See `DESIGN.md` for the full design and `docs/journal.md` for the build log of this repo's own (dogfooded) construction.
+Live dashboard: **https://mmorrow24work.github.io/ai-app-factory/**
+
+See `DESIGN.md` for the full design, `docs/adr/0001-design-to-issues-loop.md` for the ask → design doc → milestones/issues → `claude-go` loop step by step, and `docs/journal.md` for the build log of this repo's own (dogfooded) construction.
+
+## Setup
+
+### 1. This repo's own secrets
+
+The `claude-go` pipeline on *this* repo (and `draft-design-doc.yml` / `generate-issues.yml`, which run here too) needs two Actions secrets:
+
+```sh
+claude setup-token   # mint a Claude Code OAuth token, paste it at the prompt below
+gh secret set CLAUDE_CODE_OAUTH_TOKEN -R mmorrow24work/ai-app-factory
+
+gh secret set GH_PAT -R mmorrow24work/ai-app-factory   # fine-grained PAT, see scripts/README.md
+```
+
+`GH_PAT` needs `contents`, `issues`, `pull-requests`, and `actions` write — a plain `contents: write` `GITHUB_TOKEN` can't create the repos/secrets/milestones this pipeline creates in *other* repos. Note GitHub also withholds `workflow` scope from fine-grained PATs used this way: any change to a `.github/workflows/*.yml` file has to be pushed by a human, not the pipeline — see the `## Known limitations` section below.
+
+### 2. The local secrets store (`factory-new.sh` / `factory-secrets.sh`)
+
+```sh
+mkdir -p ~/.config/ai-app-factory
+chmod 700 ~/.config/ai-app-factory
+cat > ~/.config/ai-app-factory/.env <<'EOF'
+CLAUDE_CODE_OAUTH_TOKEN=   # same token as step 1
+GH_PAT=                    # same PAT as step 1
+EOF
+chmod 600 ~/.config/ai-app-factory/.env
+```
+
+This file is never committed — it lives outside this repo, under your home directory. See `scripts/README.md` for the full CLI reference.
+
+### 3. Running the site locally
+
+```sh
+cd site
+npm install
+npm run dev       # http://localhost:5173
+npm run build     # static output to site/build/, what pages-deploy.yml ships
+npm run lint       # prettier + eslint
+npm run check      # svelte-check
+```
+
+The site is 100% static — no `.env` needed to run it locally. The one piece of client-side state is a GitHub PAT you paste into `/settings` (used only for `workflow_dispatch` calls to `api.github.com`, stored in `localStorage`) so the `/new` intake page can fire `draft-design-doc.yml`.
+
+## Using the factory
+
+**Scaffold a new project by hand:**
+
+```sh
+scripts/factory-new.sh custom-script my-new-tool --ask "A CLI that syncs X to Y" \
+  --set ENTRY_POINT=run.py --set TEST_COMMAND=pytest
+scripts/factory-secrets.sh my-new-tool
+```
+
+**Or through the site:** open `/new`, describe the project in a sentence or two, submit. Review the drafted `docs/proposals/<slug>.md` PR it opens here, edit if needed, and merge — `generate-issues.yml` takes it from there (creates the repo if it doesn't exist, generates milestones and `claude-go`-labeled issues). See the ADR for the full loop.
+
+## Known limitations
+
+- **The pipeline's own `GH_PAT` can't write `.github/workflows/*.yml` files** — GitHub withholds `workflow` scope from PATs used this way as a deliberate guardrail (workflow files run with repo secrets). When a `claude-go` run needs to add or change one, it can't push it and posts the content in a PR description or issue comment instead, for a human to apply by hand. Hit and worked around three times building this repo itself (`pages-deploy.yml`, `draft-design-doc.yml`, `generate-issues.yml`).
+- **`docs/journal.md`'s `Result: success/failure` reflects the Claude Code step's own execution outcome, not whether it achieved the issue's goal.** A run that correctly decides to post a blocking comment instead of opening a PR (e.g. genuine ambiguity, or the workflow-scope wall above) still records `Result: success` — "the agent completed its turn without erroring," not "a PR landed." Check the entry's `PR:` field (`—` vs an actual number) to tell the two apart.
+- **Support & Handoff, and forking:** see `DESIGN.md`'s "Support & handoff" section — every generated project documents this itself too, via `templates/_shared/SUPPORT_HANDOFF.md.tmpl`.
