@@ -34,8 +34,7 @@ jobs:
        !contains(github.event.issue.labels.*.name, 'lane:interactive') &&
        !contains(github.event.issue.labels.*.name, 'lane:manual')) ||
       (github.event_name == 'issue_comment' &&
-       contains(github.event.comment.body, '@claude') &&
-       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
+       contains(github.event.comment.body, '@claude'))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -43,8 +42,52 @@ jobs:
         with:
           fetch-depth: 0
 
+      # A collaborator's @claude comment was already the only kind that could reach here
+      # (the job-level `if:` above used to check author_association itself) -- moved into a
+      # step, not the job if:, because the *other* authorized commenter is this project's own
+      # recorded requester, and confirming that means reading README.md, which needs
+      # actions/checkout first; the job-level `if:` runs before any checkout and only has the
+      # event payload to work with. Without this, the requester could approve/reject PRs
+      # (review-decision.yml) but never actually direct what gets built -- @claude comments
+      # were collaborator-only, so the requester's only real feedback channel was binary
+      # accept/reject on something already drafted, never "make this red instead."
+      - name: Authorize
+        id: auth
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "issue_comment" ]; then
+            echo "authorized=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          case "${{ github.event.comment.author_association }}" in
+            OWNER|MEMBER|COLLABORATOR)
+              echo "authorized=true" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+
+          # Not a collaborator -- tolerate zero matches (older repos, no "Requested by" line
+          # yet) rather than crash: grep exits 1 on no match, and under pipefail that would
+          # otherwise trip set -e before this check ever completes. Same pattern and same
+          # reasoning as review-decision.yml's identical extraction.
+          requester=$(grep -oE '\[@[A-Za-z0-9-]+\]\(https://github\.com/[A-Za-z0-9-]+\)' README.md \
+            | head -n1 | sed -E 's/\[@([A-Za-z0-9-]+)\].*/\1/' || true)
+          login="${{ github.event.comment.user.login }}"
+
+          if [ -n "$requester" ] && [ "$login" = "$requester" ]; then
+            echo "authorized=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "authorized=false" >> "$GITHUB_OUTPUT"
+            gh issue comment "${{ github.event.issue.number }}" --repo "${{ github.repository }}" \
+              --body "Only this project's recorded requester (@$requester) or a repo collaborator can direct changes via an @claude comment -- @$login is neither, so this wasn't actioned."
+          fi
+
       - name: Resolve target issue and model
         id: cfg
+        if: steps.auth.outputs.authorized == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -125,10 +168,12 @@ jobs:
 
       - name: Record start time
         id: timer
+        if: steps.auth.outputs.authorized == 'true'
         run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
 
       - uses: anthropics/claude-code-action@v1
         id: claude
+        if: steps.auth.outputs.authorized == 'true'
         with:
           # Authenticates against the Claude subscription, NOT pay-per-token
           # API billing. `anthropic_api_key` is deliberately NOT set here: it
@@ -217,7 +262,7 @@ jobs:
           retention-days: 90
 
       - name: Append journal entry
-        if: always()
+        if: always() && steps.auth.outputs.authorized == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
