@@ -1,5 +1,7 @@
 # Design: ai-app-factory-hello-world-v3
 
+**Requested by:** @mmorrow2012
+
 ## Problem
 
 The ask behind this doc is word-for-word the ask behind `ai-app-factory-hello-world` (issue #31 → PR #31, provisioned 2026-08-17): *"Create a simple hello-world site to test the ai-app-factory build process."* Drafting a third design for the same one-sentence ask is only defensible if the thing being tested has changed — and it has, twice, in the hours before this doc was drafted.
