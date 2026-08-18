@@ -1,5 +1,5 @@
 <script>
-	// Plain-language, 6-step version of the workflow for a non-technical audience. The exact
+	// Plain-language, 7-step version of the workflow for a non-technical audience. The exact
 	// mechanics (workflow filenames, trigger names, gh commands) live in the CLI command
 	// reference section below this diagram on the how-it-works page, for anyone who wants that
 	// level of detail -- this component intentionally never names a file, a label, or a script.
@@ -15,6 +15,10 @@
 		{
 			title: 'AI agent builds it',
 			body: 'An AI coding agent works with GitHub to write the code and open pull requests.'
+		},
+		{
+			title: 'You approve each change',
+			body: 'The requester -- not the project owner -- approves or rejects each pull request on this site as the app is built.'
 		},
 		{
 			title: 'Host it on GitHub',

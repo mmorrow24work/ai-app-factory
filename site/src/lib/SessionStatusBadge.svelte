@@ -1,7 +1,13 @@
 <script>
 	import { listWorkflowRuns, findLatestWorkflowRun } from './github.js';
 
-	const POLL_INTERVAL_MS = 60_000;
+	// 5 minutes, not 60s: unauthenticated GitHub API calls share a 60-requests/hour-per-IP
+	// budget, and this component alone polling every 60s already burns that budget in an
+	// hour before counting PendingDecisions' own poll or anything else on the page. Found
+	// live, 2026-08-18: a visitor with a project page open for a while saw "Status
+	// unavailable" and "Couldn't load open pull requests" simultaneously -- the same
+	// exhausted rate limit surfacing as two different-looking errors.
+	const POLL_INTERVAL_MS = 5 * 60_000;
 
 	let { repo, workflowPath = '.github/workflows/claude.yml' } = $props();
 

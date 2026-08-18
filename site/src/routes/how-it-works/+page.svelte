@@ -10,9 +10,9 @@
 <article class="max-w-3xl">
 	<h1 class="text-2xl font-semibold text-foreground">How it works</h1>
 	<p class="mt-2 text-muted-foreground">
-		ai-app-factory turns an idea into a real, working app -- built and hosted using GitHub. Two
-		steps along the way are check-ins with the project owner, so nothing gets built or thrown away
-		without a person approving it first.
+		ai-app-factory turns an idea into a real, working app -- built and hosted using GitHub. Nothing
+		gets built without a person approving it first: the project owner approves the initial plan,
+		then the requester themselves approves or rejects each change as the app gets built.
 	</p>
 
 	<section class="mt-8">

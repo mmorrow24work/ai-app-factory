@@ -11,7 +11,10 @@
 	const rejectClasses =
 		'inline-flex h-10 items-center justify-center whitespace-nowrap rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:bg-accent hover:text-accent-foreground';
 
-	const POLL_INTERVAL_MS = 60_000;
+	// 5 minutes, not 60s -- see the identical comment in SessionStatusBadge.svelte. These two
+	// components are the main drivers of the unauthenticated 60-requests/hour-per-IP budget
+	// getting exhausted on a project page left open for a while.
+	const POLL_INTERVAL_MS = 5 * 60_000;
 
 	let { repo } = $props();
 
