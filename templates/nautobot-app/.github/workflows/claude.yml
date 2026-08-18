@@ -76,6 +76,30 @@ jobs:
             echo "$delim"
           } >> "$GITHUB_OUTPUT"
 
+          # On an issue_comment-triggered run, the comment is only ever checked by the `if:`
+          # above as a trigger condition -- its actual text was never read into the prompt,
+          # so a human posting "@claude, actually do X instead" had that instruction silently
+          # discarded and every retry re-solved the exact same original issue text from
+          # scratch. Found live, 2026-08-18: two consecutive @claude retries with materially
+          # different follow-up instructions produced near-identical responses, because both
+          # runs only ever saw the unchanged original issue body. Fetched via `gh api` on the
+          # comment id (a GitHub-assigned number, safe to interpolate directly) rather than
+          # embedding `${{ github.event.comment.body }}` straight into this script, which
+          # would let untrusted comment text break out of the shell command itself.
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            {
+              echo "comment_section<<$delim"
+              echo "## Triggering comment"
+              echo
+              echo "This run was triggered by the comment below, posted on this issue after the description above. If it gives updated instructions, corrections, or clarification, follow those over the original description above -- it's newer."
+              echo
+              gh api "repos/$GITHUB_REPOSITORY/issues/comments/${{ github.event.comment.id }}" --jq .body
+              echo "$delim"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "comment_section=" >> "$GITHUB_OUTPUT"
+          fi
+
           # The `model:opus` label escalates off the Sonnet default.
           if printf '%s' "$labels" | grep -q 'model:opus'; then
             echo "model=claude-opus-5" >> "$GITHUB_OUTPUT"
@@ -131,6 +155,8 @@ jobs:
             ## Issue #${{ steps.cfg.outputs.number }}: ${{ steps.cfg.outputs.title }}
 
             ${{ steps.cfg.outputs.body }}
+
+            ${{ steps.cfg.outputs.comment_section }}
 
             ## Instructions
 
