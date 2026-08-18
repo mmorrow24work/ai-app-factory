@@ -125,6 +125,19 @@ jobs:
           # Same subscription-auth rationale as claude.yml: claude_code_oauth_token, not
           # anthropic_api_key, so this doesn't bill API usage on top of the subscription.
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # claude-code-action refuses to run for an actor without write access to the repo
+          # by default -- which is every real requester, structurally, since the whole point
+          # of this workflow is to serve people who aren't collaborators (found live,
+          # 2026-08-18, via a real non-collaborator test account: "Actor does not have write
+          # permissions to the repository"). Accepted here because the blast radius is
+          # already bounded regardless of what a malicious issue body tries to do: GH_PAT is
+          # scoped to this one repo only, excludes Administration and Workflows (see
+          # DESIGN.md's "GH_PAT: token strategy"), and this step's own --allowedTools below
+          # grants no network/curl access -- there's no path out of this repo even for a
+          # successful prompt injection. Gate #1 (reviewing/merging the drafted PR) is still
+          # the real control point; this only lets Claude draft a doc and open a PR for
+          # review, same as it always could for a collaborator.
+          allowed_non_write_users: "*"
           github_token: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
           track_progress: false
           base_branch: main
