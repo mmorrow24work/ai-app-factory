@@ -84,7 +84,7 @@ jobs:
           # different follow-up instructions produced near-identical responses, because both
           # runs only ever saw the unchanged original issue body. Fetched via `gh api` on the
           # comment id (a GitHub-assigned number, safe to interpolate directly) rather than
-          # embedding `${{ github.event.comment.body }}` straight into this script, which
+          # embedding the raw event comment-body expression straight into this script, which
           # would let untrusted comment text break out of the shell command itself.
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
             {
