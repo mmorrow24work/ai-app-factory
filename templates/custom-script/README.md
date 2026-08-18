@@ -7,6 +7,7 @@ The lightest-weight of the three `ai-app-factory` project types: a single script
 ```
 CLAUDE.md.tmpl                       Becomes the new repo's CLAUDE.md
 README.md.tmpl                       Becomes the new repo's README.md
+theme.css, theme-toggle.js           Framework-free light/dark theme — copied as-is, no build step; CLAUDE.md.tmpl instructs the pipeline to link them into any HTML page it creates
 .env.example                         Copied as-is; consumer fills in real values locally
 .github/workflows/claude.yml         Lane B driver — copied with placeholders filled in
 .github/workflows/seed-milestones.yml  Turns the approved design doc into milestones/issues — human-triggered once, see ADR 0001 in ai-app-factory
