@@ -20,5 +20,13 @@
     "status": "active",
     "ask": "Create a simple hello-world site to test the ai-app-factory build process",
     "requesterGithub": "mmorrow2012"
+  },
+  {
+    "repo": "mmorrow24work/ai-app-factory-hello-world-v4",
+    "type": "custom-script",
+    "createdAt": "2026-08-18T11:55:17Z",
+    "status": "active",
+    "ask": "Create a simple hello-world site to test the ai-app-factory build process",
+    "requesterGithub": "mmorrow2012"
   }
 ]
