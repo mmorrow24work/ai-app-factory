@@ -10,6 +10,7 @@ README.md.tmpl                       Becomes the new repo's README.md
 .env.example                         Copied as-is; consumer fills in real values locally
 .github/workflows/claude.yml         Lane B driver — copied with placeholders filled in
 .github/workflows/seed-milestones.yml  Turns the approved design doc into milestones/issues — human-triggered once, see ADR 0001 in ai-app-factory
+.github/workflows/review-decision.yml   Executes the requester's approve/reject decision on a claude.yml PR — see ai-app-factory DESIGN.md's "PR review & merge"
 .github/scripts/journal-entry.sh     Metrics-append script — copied as-is, already generic
 docs/journal.md                      Empty journal skeleton — copied as-is
 ```

@@ -1,0 +1,147 @@
+name: review-decision
+
+# Executes the requester's approve/reject decision on a PR this repo's own claude.yml opened
+# -- part of ai-app-factory's "requester gets full review/merge autonomy" design (see
+# ai-app-factory's DESIGN.md, "PR review & merge"). The project owner is never in this path;
+# every decision belongs to the person who asked for this project (or to this repo's owner).
+#
+# Triggered on `issues: opened`, filtered to a `[review-approve] ` or `[review-reject] `
+# title prefix followed by a PR number (e.g. `[review-approve] PR #12`) -- same reasoning as
+# ai-app-factory's own draft-design-doc.yml for using a title prefix rather than a label:
+# GitHub silently drops a labels= query param on an issues/new deep link for anyone without
+# label-write access, which the requester structurally doesn't have on this repo (see
+# ai-app-factory's DESIGN.md, "Support & handoff" -- the requester never gets direct access
+# to a generated repo, only a fork after the fact). title/body query params have no such
+# restriction, for any GitHub user.
+#
+# Authorization: only the project's own recorded requester -- parsed from this repo's own
+# README.md "Requested by" line (templates/_shared/REQUESTED_BY.md.tmpl's rendered output,
+# the same value factory-new.sh stamped in at provisioning) -- or this repo's owner may act.
+# Anyone else's issue is acknowledged and closed, not acted on. Without this check, this
+# being a public repo with a public issue tracker would let *any* GitHub user merge or close
+# *any* PR here just by opening the right issue title.
+
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "review-approve/review-reject issue to (re)process -- only for retrying a failed run; issues: opened handles normal decisions automatically"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  decide:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.issue.title, '[review-approve] ') ||
+      startsWith(github.event.issue.title, '[review-reject] ')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the decision issue
+        id: issue
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            number="${{ inputs.issue_number }}"
+          else
+            number="${{ github.event.issue.number }}"
+          fi
+
+          data=$(gh issue view "$number" --repo "${{ github.repository }}" --json number,title,author)
+          title=$(jq -r '.title' <<<"$data")
+          login=$(jq -r '.author.login' <<<"$data")
+
+          case "$title" in
+            "[review-approve] "*) action="approve" ;;
+            "[review-reject] "*) action="reject" ;;
+            *)
+              echo "Title '$title' doesn't start with [review-approve] or [review-reject] -- nothing to do" >&2
+              echo "action=" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+
+          pr_number=$(grep -oE '[0-9]+' <<<"$title" | head -n1)
+          if [ -z "$pr_number" ]; then
+            echo "::error::No PR number found in title '$title' -- expected e.g. '[review-approve] PR #12'"
+            exit 1
+          fi
+
+          {
+            echo "number=$number"
+            echo "login=$login"
+            echo "action=$action"
+            echo "pr_number=$pr_number"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Authorize
+        id: auth
+        if: steps.issue.outputs.action != ''
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Tolerate zero matches (no "Requested by" line yet, or malformed) -- that's the
+          # expected shape for older repos, and must fall through to owner-only authorization
+          # below, not crash the step: grep exits 1 on no match, and with pipefail that would
+          # otherwise trip set -e before the authorization check ever runs.
+          requester=$(grep -oE '\[@[A-Za-z0-9-]+\]\(https://github\.com/[A-Za-z0-9-]+\)' README.md \
+            | head -n1 | sed -E 's/\[@([A-Za-z0-9-]+)\].*/\1/' || true)
+          login="${{ steps.issue.outputs.login }}"
+          owner="${{ github.repository_owner }}"
+
+          if [ "$login" = "$requester" ] || [ "$login" = "$owner" ]; then
+            echo "authorized=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "authorized=false" >> "$GITHUB_OUTPUT"
+            gh issue comment "${{ steps.issue.outputs.number }}" --repo "${{ github.repository }}" \
+              --body "Only this project's recorded requester (@$requester) or the repo owner (@$owner) can approve or reject a PR here -- @$login is neither, so this wasn't actioned."
+            gh issue close "${{ steps.issue.outputs.number }}" --repo "${{ github.repository }}"
+          fi
+
+      - name: Approve (merge)
+        if: steps.issue.outputs.action == 'approve' && steps.auth.outputs.authorized == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          pr="${{ steps.issue.outputs.pr_number }}"
+          state=$(gh pr view "$pr" --repo "${{ github.repository }}" --json state --jq .state)
+          if [ "$state" = "OPEN" ]; then
+            gh pr merge "$pr" --repo "${{ github.repository }}" --squash --delete-branch
+          else
+            echo "PR #$pr is already $state -- nothing to merge"
+          fi
+          gh issue comment "${{ steps.issue.outputs.number }}" --repo "${{ github.repository }}" \
+            --body "Approved by @${{ steps.issue.outputs.login }} -- PR #$pr merged."
+          gh issue close "${{ steps.issue.outputs.number }}" --repo "${{ github.repository }}"
+
+      - name: Reject (close without merging)
+        if: steps.issue.outputs.action == 'reject' && steps.auth.outputs.authorized == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          pr="${{ steps.issue.outputs.pr_number }}"
+          state=$(gh pr view "$pr" --repo "${{ github.repository }}" --json state --jq .state)
+          if [ "$state" = "OPEN" ]; then
+            gh pr close "$pr" --repo "${{ github.repository }}" --delete-branch \
+              --comment "Rejected by @${{ steps.issue.outputs.login }} via issue #${{ steps.issue.outputs.number }} -- closed without merging."
+          else
+            echo "PR #$pr is already $state -- nothing to close"
+          fi
+          gh issue comment "${{ steps.issue.outputs.number }}" --repo "${{ github.repository }}" \
+            --body "Rejected by @${{ steps.issue.outputs.login }} -- PR #$pr closed without merging."
+          gh issue close "${{ steps.issue.outputs.number }}" --repo "${{ github.repository }}"
