@@ -198,7 +198,7 @@ jobs:
           git fetch origin "$branch"
           git checkout "$branch"
 
-          if [ -f "$doc" ] && ! grep -qF "**Requested by:**" "$doc"; then
+          if [ -f "$doc" ] && ! sed -n '3p' "$doc" | grep -qF "**Requested by:**"; then
             { head -n1 "$doc"; echo; echo "$requested_by"; tail -n +2 "$doc"; } > "$doc.tmp"
             mv "$doc.tmp" "$doc"
             git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
@@ -216,7 +216,7 @@ jobs:
             exit 1
           fi
           body=$(gh pr view "$pr_number" --repo "${{ github.repository }}" --json body --jq '.body // ""')
-          if ! grep -qF "**Requested by:**" <<<"$body"; then
+          if ! head -n1 <<<"$body" | grep -qF "**Requested by:**"; then
             gh pr edit "$pr_number" --repo "${{ github.repository }}" --body "$requested_by"$'\n\n'"$body"
           fi
 
