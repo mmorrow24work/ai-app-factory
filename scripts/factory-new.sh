@@ -328,7 +328,8 @@ jq --arg repo "$OWNER/$REPO_NAME" \
    --arg createdAt "$(date -u +%F)" \
    --arg status "active" \
    --arg ask "$ASK" \
-   '. + [{repo: $repo, type: $type, createdAt: $createdAt, status: $status, ask: $ask}]' \
+   --arg requesterEmail "${VALUES[REQUESTER_EMAIL]}" \
+   '. + [{repo: $repo, type: $type, createdAt: $createdAt, status: $status, ask: $ask, requesterEmail: $requesterEmail}]' \
    "$PROJECTS_JSON" > "$TMP_PROJECTS"
 mv "$TMP_PROJECTS" "$PROJECTS_JSON"
 

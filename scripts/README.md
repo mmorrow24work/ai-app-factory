@@ -41,8 +41,10 @@ scripts/factory-new.sh custom-script my-new-tool \
   always clear who asked for it.
 - Applies `templates/_shared/labels.json` to the new repo via
   `gh label create --force`.
-- Appends `{repo, type, createdAt, status: "active", ask}` to this repo's own
-  `projects.json`.
+- Appends `{repo, type, createdAt, status: "active", ask, requesterEmail}` to
+  this repo's own `projects.json` (`requesterEmail` from the same
+  `REQUESTER_EMAIL` value the README template uses — see the dashboard's
+  "Requested by" filter in `DESIGN.md`).
 - `--dry-run` builds the scaffold under a temp directory and prints its path
   without touching GitHub or `projects.json` — useful for checking template
   rendering before creating anything.
