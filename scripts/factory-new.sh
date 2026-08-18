@@ -54,10 +54,19 @@ Placeholders with a built-in default (override with --set if needed):
 custom-script's ENTRY_POINT has no default and always needs --set — there is
 no defensible guess for a script's main file.
 
+Every project, of every type, also needs these three (logged in the new
+repo's README.md so it's clear who requested it):
+  --set REQUESTER_NAME=...
+  --set REQUESTER_EMAIL=...
+  --set REQUESTER_PHONE=...
+
 Example:
   factory-new.sh custom-script my-new-tool \
     --ask "A CLI that syncs X to Y" \
-    --set ENTRY_POINT=run.py
+    --set ENTRY_POINT=run.py \
+    --set REQUESTER_NAME="Jane Doe" \
+    --set REQUESTER_EMAIL=jane@example.com \
+    --set REQUESTER_PHONE="+1 555 0100"
 EOF
 }
 
@@ -199,10 +208,24 @@ set_default NETBOX_VERSION "v4.5.0"
 # to the MISSING/error path below like any other undefaulted placeholder.
 
 for key in "${NEEDED[@]}"; do
-  if [ "$key" = "> _shared/SUPPORT_HANDOFF.md.tmpl" ]; then
-    continue # rendered separately below
-  fi
+  case "$key" in
+    "> _shared/"*) continue ;; # shared partials are rendered separately below
+  esac
   [ -n "${VALUES[$key]+set}" ] && continue
+  if [ -n "${OVERRIDES[$key]+set}" ]; then
+    VALUES["$key"]="${OVERRIDES[$key]}"
+  else
+    MISSING+=("$key")
+  fi
+done
+
+# REQUESTER_NAME/EMAIL/PHONE intentionally have no default either, for the
+# same reason ENTRY_POINT doesn't: every generated repo's README.md must
+# name a real, verifiable requester, not a guess. They live only inside
+# templates/_shared/REQUESTED_BY.md.tmpl (a partial, not a file the NEEDED
+# scan above reads directly), so they're checked here explicitly rather than
+# relying on that scan to find them.
+for key in REQUESTER_NAME REQUESTER_EMAIL REQUESTER_PHONE; do
   if [ -n "${OVERRIDES[$key]+set}" ]; then
     VALUES["$key"]="${OVERRIDES[$key]}"
   else
@@ -240,13 +263,14 @@ render_content() {
   printf '%s' "$content"
 }
 
-# Render the shared Support & Handoff partial first (only needs
-# OWNER_GITHUB_HANDLE) and register it as a pseudo-placeholder so the main
-# pass below can splice it into README.md.tmpl's {{> _shared/...}} include.
-SUPPORT_HANDOFF_TMPL="$SHARED_DIR/SUPPORT_HANDOFF.md.tmpl"
-if [ -f "$SUPPORT_HANDOFF_TMPL" ]; then
-  VALUES["> _shared/SUPPORT_HANDOFF.md.tmpl"]="$(render_content "$SUPPORT_HANDOFF_TMPL")"
-fi
+# Render every shared partial (Support & Handoff, Requested by, ...) now that
+# VALUES is fully resolved (including hard-required keys like REQUESTER_*),
+# and register each as a pseudo-placeholder so the main pass below can splice
+# it into any file's {{> _shared/<file>}} include.
+for partial in "$SHARED_DIR"/*.md.tmpl; do
+  [ -f "$partial" ] || continue
+  VALUES["> _shared/$(basename "$partial")"]="$(render_content "$partial")"
+done
 
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/factory-new.XXXXXX")"
 cleanup() {

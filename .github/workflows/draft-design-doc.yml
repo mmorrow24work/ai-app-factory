@@ -10,6 +10,13 @@ name: draft-design-doc
 # ("creating the target repo from the right template first, if new") only runs once this
 # PR is approved and merged -- so the draft is staged in *this* repo under docs/proposals/
 # until M6 promotes it.
+#
+# requester_name/email/phone are mandatory so whoever approves the PR can see exactly who
+# is asking before merging. They're deliberately NOT left to the LLM step below to write --
+# a follow-up step stamps them onto the doc and the PR body directly from the raw inputs,
+# so this can't be skipped or paraphrased. The same "**Requested by:**" line then travels
+# forward into generate-issues.yml, which reads it back out of the design doc to pass
+# --set REQUESTER_NAME=... etc. to factory-new.sh, landing it in the new repo's README.md.
 
 on:
   workflow_dispatch:
@@ -20,6 +27,18 @@ on:
         type: string
       requirements:
         description: "Vague requirements / ask for the new project, as typed by the requester"
+        required: true
+        type: string
+      requester_name:
+        description: "Name of the person requesting this project"
+        required: true
+        type: string
+      requester_email:
+        description: "Email of the person requesting this project"
+        required: true
+        type: string
+      requester_phone:
+        description: "Phone number of the person requesting this project"
         required: true
         type: string
 
@@ -80,13 +99,18 @@ jobs:
                apply to this project.
             2. Create a new branch named `design/${{ steps.slug.outputs.slug }}`.
             3. Write the drafted design doc to `docs/proposals/${{ steps.slug.outputs.slug }}.md`
-               on that branch. This repo's own root DESIGN.md is this repo's own design, not
-               a template to overwrite -- the new project doesn't have its own repo yet, so
-               the draft is staged here for review until a later workflow promotes it.
+               on that branch, starting with a single `# Design: ${{ inputs.project_name }}`
+               line as the very first line of the file (a later step inserts a requester-info
+               line right after it -- don't add your own "Requested by" section, and don't put
+               anything else on that first line). This repo's own root DESIGN.md is this repo's
+               own design, not a template to overwrite -- the new project doesn't have its own
+               repo yet, so the draft is staged here for review until a later workflow
+               promotes it.
             4. Open a pull request against `main` titled
                `Design: ${{ inputs.project_name }}`, with a description that summarizes the
                drafted design and invites review/edits in this PR. Do not merge it -- review
-               and editing happens in the PR's normal GitHub review UI.
+               and editing happens in the PR's normal GitHub review UI. A later step prepends
+               requester contact info to your PR description -- don't add your own.
 
             This is a design proposal for a new project, not an implementation of an issue
             in this repo -- there is no "Closes #N" line to add.
@@ -94,3 +118,37 @@ jobs:
             --model claude-opus-5
             --max-turns 100
             --allowedTools "Bash(git:*),Bash(gh:*),Bash(mkdir:*),Edit,Read,Write,Glob,Grep"
+
+      - name: Stamp requester info onto the design doc and PR
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          branch="design/${{ steps.slug.outputs.slug }}"
+          doc="docs/proposals/${{ steps.slug.outputs.slug }}.md"
+          requested_by="**Requested by:** ${{ inputs.requester_name }} (${{ inputs.requester_email }}, ${{ inputs.requester_phone }})"
+
+          git fetch origin "$branch"
+          git checkout "$branch"
+
+          if [ -f "$doc" ] && ! grep -qF "**Requested by:**" "$doc"; then
+            { head -n1 "$doc"; echo; echo "$requested_by"; tail -n +2 "$doc"; } > "$doc.tmp"
+            mv "$doc.tmp" "$doc"
+            git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
+              add "$doc"
+            git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
+              commit -q -m "Record requester info"
+            git push origin "$branch"
+          elif [ ! -f "$doc" ]; then
+            echo "::warning::$doc not found on $branch -- Claude may not have written it where expected; requester info was not recorded in the doc."
+          fi
+
+          pr_number=$(gh pr list --repo "${{ github.repository }}" --head "$branch" --json number --jq '.[0].number // empty')
+          if [ -z "$pr_number" ]; then
+            echo "No PR found for $branch -- did the draft step actually open one?" >&2
+            exit 1
+          fi
+          body=$(gh pr view "$pr_number" --repo "${{ github.repository }}" --json body --jq '.body // ""')
+          if ! grep -qF "**Requested by:**" <<<"$body"; then
+            gh pr edit "$pr_number" --repo "${{ github.repository }}" --body "$requested_by"$'\n\n'"$body"
+          fi

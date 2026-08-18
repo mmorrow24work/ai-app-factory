@@ -12,6 +12,9 @@
 
 	let projectName = $state('');
 	let requirements = $state('');
+	let requesterName = $state('');
+	let requesterEmail = $state('');
+	let requesterPhone = $state('');
 	// Read once per component instance; nothing reactive on the way in, see the equivalent
 	// comment on the Settings page's own `token`.
 	let token = $derived(getStoredToken());
@@ -83,7 +86,13 @@
 			await dispatchWorkflow(
 				REPO,
 				WORKFLOW_FILE,
-				{ project_name: projectName.trim(), requirements: requirements.trim() },
+				{
+					project_name: projectName.trim(),
+					requirements: requirements.trim(),
+					requester_name: requesterName.trim(),
+					requester_email: requesterEmail.trim(),
+					requester_phone: requesterPhone.trim()
+				},
 				{ token }
 			);
 		} catch (err) {
@@ -102,6 +111,9 @@
 		run = null;
 		projectName = '';
 		requirements = '';
+		requesterName = '';
+		requesterEmail = '';
+		requesterPhone = '';
 	}
 </script>
 
@@ -115,6 +127,10 @@
 		Describe the project, even vaguely -- Opus drafts a <code class="text-foreground"
 			>DESIGN.md</code
 		> and opens it as a pull request for you to review and edit.
+	</p>
+	<p class="mt-2 text-muted-foreground">
+		Your name, email, and phone are recorded on the design doc PR and in the new repo's
+		<code class="text-foreground">README.md</code> so it's always clear who requested the project.
 	</p>
 
 	{#if !token}
@@ -148,6 +164,38 @@
 					placeholder="What should this project do? Rough notes are fine."
 					class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
 				></textarea>
+			</label>
+			<label class="flex flex-col gap-1.5 text-sm">
+				<span class="font-medium text-foreground">Your name</span>
+				<input
+					required
+					bind:value={requesterName}
+					disabled={status === 'dispatching'}
+					placeholder="e.g. Jane Doe"
+					class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+				/>
+			</label>
+			<label class="flex flex-col gap-1.5 text-sm">
+				<span class="font-medium text-foreground">Your email</span>
+				<input
+					required
+					type="email"
+					bind:value={requesterEmail}
+					disabled={status === 'dispatching'}
+					placeholder="e.g. jane@example.com"
+					class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+				/>
+			</label>
+			<label class="flex flex-col gap-1.5 text-sm">
+				<span class="font-medium text-foreground">Your phone</span>
+				<input
+					required
+					type="tel"
+					bind:value={requesterPhone}
+					disabled={status === 'dispatching'}
+					placeholder="e.g. +1 555 0100"
+					class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
+				/>
 			</label>
 			<div>
 				<Button type="submit" disabled={status === 'dispatching' || !token}>

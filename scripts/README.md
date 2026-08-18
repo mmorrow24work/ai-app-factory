@@ -17,7 +17,10 @@ Both require `gh` (authenticated) and `jq` on `PATH`.
 ```
 scripts/factory-new.sh custom-script my-new-tool \
   --ask "A CLI that syncs X to Y" \
-  --set ENTRY_POINT=run.py
+  --set ENTRY_POINT=run.py \
+  --set REQUESTER_NAME="Jane Doe" \
+  --set REQUESTER_EMAIL=jane@example.com \
+  --set REQUESTER_PHONE="+1 555 0100"
 ```
 
 - `<type>` is one of `nautobot-app`, `netbox-plugin`, `custom-script`.
@@ -32,7 +35,10 @@ scripts/factory-new.sh custom-script my-new-tool \
   `ENTRY_POINT` (custom-script) has no default and always needs
   `--set KEY=VALUE` — there is no defensible guess for a script's main file
   — or is prompted for interactively if the script is run at a terminal
-  without it.
+  without it. `REQUESTER_NAME`/`REQUESTER_EMAIL`/`REQUESTER_PHONE` likewise
+  have no default, for every project type — they're rendered into the new
+  repo's `README.md` (`templates/_shared/REQUESTED_BY.md.tmpl`) so it's
+  always clear who asked for it.
 - Applies `templates/_shared/labels.json` to the new repo via
   `gh label create --force`.
 - Appends `{repo, type, createdAt, status: "active", ask}` to this repo's own

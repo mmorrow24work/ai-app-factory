@@ -123,7 +123,9 @@ jobs:
             1. Read the design doc at the path above. It follows this repo's own
                DESIGN.md shape (Problem / Goal / Non-goals / Architecture / Milestones).
                The project name is the doc's H1 ("# Design: <name>"); the repo-name slug
-               is the doc's filename without extension.
+               is the doc's filename without extension. Right after the H1 is a
+               "**Requested by:** <name> (<email>, <phone>)" line, added automatically by
+               draft-design-doc.yml -- extract the name/email/phone from it for step 3.
 
             2. Determine the project type from the doc's content (Goal/Architecture
                sections): one of `nautobot-app`, `netbox-plugin`, `custom-script`
@@ -137,8 +139,12 @@ jobs:
                for a script's main file -- derive it from the doc's Architecture section,
                which usually names the main file outright); `nautobot-app`/`netbox-plugin`
                have built-in defaults for `NAUTOBOT_VERSION`/`NETBOX_VERSION` and only need
-               `--set` if the doc states a different version explicitly. `--ask` should be
-               a one-line summary of the doc's Problem/Goal.
+               `--set` if the doc states a different version explicitly. Every type also
+               always needs `--set REQUESTER_NAME=...`, `--set REQUESTER_EMAIL=...`, and
+               `--set REQUESTER_PHONE=...` (no defaults either) -- pull these three straight
+               from the "**Requested by:**" line found in step 1; quote each value if it
+               contains spaces. `--ask` should be a one-line summary of the doc's
+               Problem/Goal.
 
             4. Check whether an open issue in this repo already has the title
                `Provision mmorrow24work/<slug>` (`gh issue list --repo
