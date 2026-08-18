@@ -1,0 +1,560 @@
+@import 'tailwindcss';
+
+/* Tailwind v4's default `dark:` variant follows `prefers-color-scheme` (a media query), which
+   can't be toggled by anything on the page -- it would ignore an explicit choice made through
+   `$lib/theme.js`'s toggle whenever it disagreed with the OS setting. Redeclaring the variant as
+   a class-and-descendant selector makes `dark:` utilities key off the same `.dark` class on
+   `<html>` that `:root`/`.dark` below and the toggle itself already use, so both theming paths
+   track one flag rather than two. Ported from uk-wealth-tracker's app.css (issue #116). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Tokens that belong to no colour palette -- the corner radius and the typography stacks -- so
+   they stay `:root`-only rather than being restated by every `.palette-*` rule further down. */
+:root {
+	/* Nothing else in this app sets `color-scheme`. Without it, native form controls (a
+	   `<select>`'s own dropdown, scrollbars) render with the browser's default *light* UI
+	   regardless of `.dark`, while `color: hsl(var(--foreground))` still cascades onto
+	   `<option>` text -- a near-white foreground on a white popup background is unreadable. */
+	color-scheme: light;
+
+	--radius: 0.5rem;
+
+	/* Font family preferences (ported from uk-wealth-tracker's `$lib/typography.js`, issue #117).
+	   `--font-sans-stack` matches Tailwind v4's own default `--font-sans` so "no preference chosen
+	   yet" looks identical to before this option existed. Only system-stack options are ported --
+	   the `accessible`/`handwritten`/`spooky` picks in uk-wealth-tracker need self-hosted
+	   `@fontsource` webfont packages bundled with the app; this site keeps the four options that
+	   need no font file at all, to avoid adding webfont bundle weight for a factory dashboard. */
+	--font-sans-stack:
+		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial,
+		sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+	--font-serif-stack: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+	--font-rounded-stack: ui-rounded, 'SF Pro Rounded', Nunito, 'Segoe UI', Roboto, sans-serif;
+	--font-mono-stack: 'Courier New', Courier, monospace;
+
+	--app-font-family: var(--font-sans-stack);
+	--text-scale: 1;
+}
+
+/* Explicit fallback for the `color-scheme` fix above -- honoured by every major browser's native
+   popup rendering regardless of `color-scheme` support, so this guarantees readable `<select>`
+   options even where that property alone doesn't fully do the job. */
+select,
+select option {
+	background-color: hsl(var(--background));
+	color: hsl(var(--foreground));
+}
+
+/* Colour palettes -- a second theming axis layered *under* light/dark, not beside it: every named
+   palette below ships a light rule and a `.dark`-qualified rule, so `$lib/theme.js`'s light/dark
+   toggle keeps working unchanged whichever palette is active. `$lib/palette.js` toggles one
+   `.palette-*` class on `<html>`, the same way `$lib/theme.js` toggles `.dark` and
+   `$lib/typography.js` toggles `.font-serif`. Ported wholesale from uk-wealth-tracker's app.css
+   (issue #126), which has already done the WCAG-AA contrast and colour-vision-deficiency work for
+   every value below -- see that repo's `src/palettes.css.test.js` for how it's verified.
+
+   Rule order in this file is load-bearing, because `.palette-x` and `.dark` have identical
+   specificity (0-1-0): the light palettes sit *above* `.dark` so a dark page isn't repainted light
+   by a later same-weight rule, and the `.dark.palette-x` rules (0-2-0) sit *below* it so they win
+   outright. Moving either block past `.dark` breaks dark mode for every named palette. */
+:root,
+.palette-default {
+	--background: 0 0% 100%;
+	--foreground: 0 0% 3.6%;
+	--card: 0 0% 100%;
+	--card-foreground: 0 0% 3.6%;
+	--popover: 0 0% 100%;
+	--popover-foreground: 0 0% 3.6%;
+	--muted: 0 0% 96.1%;
+	--muted-foreground: 0 0% 43.5%;
+	--accent: 0 0% 9.1%;
+	--accent-foreground: 0 0% 100%;
+	--destructive: 0 72% 45%;
+	--destructive-foreground: 0 0% 100%;
+	--border: 0 0% 89.8%;
+	--input: 0 0% 89.8%;
+	--primary: 0 0% 9.1%;
+	--primary-foreground: 0 0% 100%;
+	--secondary: 0 0% 96.1%;
+	--secondary-foreground: 0 0% 9.1%;
+	--ring: 0 0% 9.1%;
+
+	/* Chart series hues, in the same `H S% L%` triple form as the tokens above -- use as
+	   `hsl(var(--chart-1))`. Not wired into any chart component in this milestone (this site's
+	   existing charts use their own fixed hues per the dataviz skill), but ported as part of the
+	   token system so a future chart can adopt them without a second design pass. */
+	--chart-1: 213 68% 50%;
+	--chart-2: 17 82% 56%;
+	--chart-3: 69 68% 20%;
+	--chart-4: 149 64% 38%;
+	--chart-5: 285 68% 38%;
+}
+
+.font-serif {
+	--app-font-family: var(--font-serif-stack);
+}
+
+.font-rounded {
+	--app-font-family: var(--font-rounded-stack);
+}
+
+.font-mono {
+	--app-font-family: var(--font-mono-stack);
+}
+
+.text-scale-small {
+	--text-scale: 0.875;
+}
+
+.text-scale-large {
+	--text-scale: 1.125;
+}
+
+/* The named palettes' light variants. Each restates the full colour-token set rather than patching
+   a few hues off `:root`, so reading one rule tells you the whole palette. `--destructive` and
+   `--destructive-foreground` are deliberately *not* restated: red-means-danger is semantic, not
+   decorative, and every palette inherits the one red from `:root`/`.dark`. */
+/* Male -- a cool palette: slate-blue surfaces, a deep navy primary and a teal accent. Named for
+   the aesthetic, not the audience; anyone can pick it. */
+.palette-male {
+	--background: 211 30% 99%;
+	--foreground: 211 26% 11%;
+	--card: 211 30% 100%;
+	--card-foreground: 211 26% 11%;
+	--popover: 211 30% 100%;
+	--popover-foreground: 211 26% 11%;
+	--muted: 211 38% 94%;
+	--muted-foreground: 211 26% 36%;
+	--accent: 190 62% 26%;
+	--accent-foreground: 190 30% 98%;
+	--border: 211 36% 86%;
+	--input: 211 36% 86%;
+	--primary: 211 62% 27%;
+	--primary-foreground: 211 30% 98%;
+	--secondary: 190 40% 92%;
+	--secondary-foreground: 190 26% 18%;
+	--ring: 211 62% 34%;
+	--chart-1: 211 70% 44%;
+	--chart-2: 152 68% 24%;
+	--chart-3: 67 68% 34%;
+	--chart-4: 271 72% 42%;
+	--chart-5: 355 68% 34%;
+}
+
+/* Female -- the warm counterpart: barely-pink surfaces, a plum primary and a violet accent.
+   Deliberately deep and muted rather than pastel, to stay on the right side of AA and of cliché. */
+.palette-female {
+	--background: 322 34% 99%;
+	--foreground: 322 24% 11%;
+	--card: 322 34% 100%;
+	--card-foreground: 322 24% 11%;
+	--popover: 322 34% 100%;
+	--popover-foreground: 322 24% 11%;
+	--muted: 322 42% 94%;
+	--muted-foreground: 322 24% 36%;
+	--accent: 285 52% 26%;
+	--accent-foreground: 285 34% 98%;
+	--border: 322 40% 86%;
+	--input: 322 40% 86%;
+	--primary: 320 52% 27%;
+	--primary-foreground: 320 34% 98%;
+	--secondary: 285 44% 92%;
+	--secondary-foreground: 285 24% 18%;
+	--ring: 320 52% 34%;
+	--chart-1: 322 62% 42%;
+	--chart-2: 32 82% 40%;
+	--chart-3: 106 68% 22%;
+	--chart-4: 188 68% 40%;
+	--chart-5: 250 68% 42%;
+}
+
+/* Football -- pitch green on white. The only palette that keeps pure-white surfaces in light
+   mode, which is what separates it from Cricket below. */
+.palette-football {
+	--background: 140 24% 100%;
+	--foreground: 140 22% 11%;
+	--card: 140 24% 100%;
+	--card-foreground: 140 22% 11%;
+	--popover: 140 24% 100%;
+	--popover-foreground: 140 22% 11%;
+	--muted: 140 32% 94%;
+	--muted-foreground: 140 22% 36%;
+	--accent: 145 58% 26%;
+	--accent-foreground: 145 24% 98%;
+	--border: 140 30% 86%;
+	--input: 140 30% 86%;
+	--primary: 140 58% 27%;
+	--primary-foreground: 140 24% 98%;
+	--secondary: 145 34% 92%;
+	--secondary-foreground: 145 22% 18%;
+	--ring: 140 58% 34%;
+	--chart-1: 142 62% 28%;
+	--chart-2: 222 70% 46%;
+	--chart-3: 70 68% 34%;
+	--chart-4: 286 68% 34%;
+	--chart-5: 356 68% 42%;
+}
+
+/* Cricket -- the same pitch green over cream, with a leather-brown accent; warmer and lower
+   contrast than Football, so the two read as different rather than as one theme twice. */
+.palette-cricket {
+	--background: 46 32% 96%;
+	--foreground: 46 24% 11%;
+	--card: 46 32% 98%;
+	--card-foreground: 46 24% 11%;
+	--popover: 46 32% 98%;
+	--popover-foreground: 46 24% 11%;
+	--muted: 46 40% 94%;
+	--muted-foreground: 46 24% 36%;
+	--accent: 30 46% 26%;
+	--accent-foreground: 30 32% 98%;
+	--border: 46 38% 86%;
+	--input: 46 38% 86%;
+	--primary: 116 46% 27%;
+	--primary-foreground: 116 32% 98%;
+	--secondary: 30 42% 92%;
+	--secondary-foreground: 30 24% 18%;
+	--ring: 116 46% 34%;
+	--chart-1: 96 52% 26%;
+	--chart-2: 250 60% 50%;
+	--chart-3: 24 72% 48%;
+	--chart-4: 168 68% 34%;
+	--chart-5: 312 68% 42%;
+}
+
+/* Sunny beach -- sand surfaces, turquoise chrome, a hot-sand orange second series. */
+.palette-beach {
+	--background: 38 40% 97%;
+	--foreground: 38 26% 11%;
+	--card: 38 40% 99%;
+	--card-foreground: 38 26% 11%;
+	--popover: 38 40% 99%;
+	--popover-foreground: 38 26% 11%;
+	--muted: 38 48% 94%;
+	--muted-foreground: 38 26% 36%;
+	--accent: 174 66% 26%;
+	--accent-foreground: 174 40% 98%;
+	--border: 38 46% 86%;
+	--input: 38 46% 86%;
+	--primary: 186 66% 27%;
+	--primary-foreground: 186 40% 98%;
+	--secondary: 174 50% 92%;
+	--secondary-foreground: 174 26% 18%;
+	--ring: 186 66% 34%;
+	--chart-1: 188 78% 28%;
+	--chart-2: 28 86% 42%;
+	--chart-3: 114 68% 20%;
+	--chart-4: 260 68% 42%;
+	--chart-5: 332 68% 36%;
+}
+
+/* UK country living -- parchment surfaces, olive primary, russet accent. Muted throughout; this
+   is the lowest-saturation of the named palettes on purpose. */
+.palette-country {
+	--background: 40 22% 96%;
+	--foreground: 40 20% 11%;
+	--card: 40 22% 98%;
+	--card-foreground: 40 20% 11%;
+	--popover: 40 22% 98%;
+	--popover-foreground: 40 20% 11%;
+	--muted: 40 30% 94%;
+	--muted-foreground: 40 20% 36%;
+	--accent: 28 40% 26%;
+	--accent-foreground: 28 22% 98%;
+	--border: 40 28% 86%;
+	--input: 40 28% 86%;
+	--primary: 104 40% 27%;
+	--primary-foreground: 104 22% 98%;
+	--secondary: 28 32% 92%;
+	--secondary-foreground: 28 20% 18%;
+	--ring: 104 40% 34%;
+	--chart-1: 104 46% 22%;
+	--chart-2: 26 72% 44%;
+	--chart-3: 194 68% 42%;
+	--chart-4: 248 68% 42%;
+	--chart-5: 320 68% 42%;
+}
+
+/* UK city living -- cool concrete greys with a steel-blue primary and a teal second series. */
+.palette-city {
+	--background: 214 14% 97%;
+	--foreground: 214 16% 11%;
+	--card: 214 14% 99%;
+	--card-foreground: 214 16% 11%;
+	--popover: 214 14% 99%;
+	--popover-foreground: 214 16% 11%;
+	--muted: 214 22% 94%;
+	--muted-foreground: 214 16% 36%;
+	--accent: 200 34% 26%;
+	--accent-foreground: 200 14% 98%;
+	--border: 214 20% 86%;
+	--input: 214 20% 86%;
+	--primary: 214 34% 27%;
+	--primary-foreground: 214 14% 98%;
+	--secondary: 200 24% 92%;
+	--secondary-foreground: 200 16% 18%;
+	--ring: 214 34% 34%;
+	--chart-1: 214 52% 42%;
+	--chart-2: 168 76% 22%;
+	--chart-3: 72 68% 34%;
+	--chart-4: 280 72% 42%;
+	--chart-5: 358 68% 42%;
+}
+
+.dark {
+	color-scheme: dark;
+
+	--background: 0 0% 3.6%;
+	--foreground: 0 0% 98.2%;
+	--card: 0 0% 3.6%;
+	--card-foreground: 0 0% 98.2%;
+	--popover: 0 0% 3.6%;
+	--popover-foreground: 0 0% 98.2%;
+	--muted: 0 0% 14.9%;
+	--muted-foreground: 0 0% 63.9%;
+	--accent: 0 0% 98.2%;
+	--accent-foreground: 0 0% 9.1%;
+	--destructive: 0 84.2% 60.2%;
+	--destructive-foreground: 0 0% 9.1%;
+	--border: 0 0% 14.9%;
+	--input: 0 0% 14.9%;
+	--primary: 0 0% 98.2%;
+	--primary-foreground: 0 0% 9.1%;
+	--secondary: 0 0% 14.9%;
+	--secondary-foreground: 0 0% 98.2%;
+	--ring: 0 0% 83.1%;
+
+	/* Stepped for the dark surface, not flipped from the light values -- the same five hue
+	   families, re-stepped until each clears 3:1 against a near-black background and stays
+	   ΔE ≥ 8 from the other four. */
+	--chart-1: 213 77% 56%;
+	--chart-2: 17 70% 50%;
+	--chart-3: 69 68% 58%;
+	--chart-4: 141 68% 58%;
+	--chart-5: 275 76% 52%;
+}
+
+/* The named palettes' dark variants. Stepped for a dark surface rather than flipped from the
+   light values above -- same hues, re-chosen lightnesses -- the way `.dark`'s own chart hues are. */
+.dark.palette-male {
+	--background: 211 38% 7%;
+	--foreground: 211 42% 96%;
+	--card: 211 38% 9.5%;
+	--card-foreground: 211 42% 96%;
+	--popover: 211 38% 9.5%;
+	--popover-foreground: 211 42% 96%;
+	--muted: 211 40% 17%;
+	--muted-foreground: 211 44% 68%;
+	--accent: 190 50% 90%;
+	--accent-foreground: 190 26% 12%;
+	--border: 211 40% 20%;
+	--input: 211 40% 20%;
+	--primary: 211 62% 72%;
+	--primary-foreground: 211 26% 10%;
+	--secondary: 190 40% 19%;
+	--secondary-foreground: 190 46% 94%;
+	--ring: 211 62% 60%;
+	--chart-1: 206 82% 68%;
+	--chart-2: 150 50% 48%;
+	--chart-3: 62 68% 58%;
+	--chart-4: 278 68% 58%;
+	--chart-5: 354 72% 58%;
+}
+
+.dark.palette-female {
+	--background: 322 42% 7%;
+	--foreground: 322 46% 96%;
+	--card: 322 42% 9.5%;
+	--card-foreground: 322 46% 96%;
+	--popover: 322 42% 9.5%;
+	--popover-foreground: 322 46% 96%;
+	--muted: 322 44% 17%;
+	--muted-foreground: 322 48% 68%;
+	--accent: 285 54% 90%;
+	--accent-foreground: 285 24% 12%;
+	--border: 322 44% 20%;
+	--input: 322 44% 20%;
+	--primary: 320 52% 72%;
+	--primary-foreground: 320 24% 10%;
+	--secondary: 285 44% 19%;
+	--secondary-foreground: 285 50% 94%;
+	--ring: 320 52% 60%;
+	--chart-1: 322 72% 66%;
+	--chart-2: 36 80% 58%;
+	--chart-3: 106 68% 68%;
+	--chart-4: 178 76% 60%;
+	--chart-5: 250 68% 60%;
+}
+
+.dark.palette-football {
+	--background: 140 32% 7%;
+	--foreground: 140 36% 96%;
+	--card: 140 32% 9.5%;
+	--card-foreground: 140 36% 96%;
+	--popover: 140 32% 9.5%;
+	--popover-foreground: 140 36% 96%;
+	--muted: 140 34% 17%;
+	--muted-foreground: 140 38% 68%;
+	--accent: 145 44% 90%;
+	--accent-foreground: 145 22% 12%;
+	--border: 140 34% 20%;
+	--input: 140 34% 20%;
+	--primary: 140 58% 72%;
+	--primary-foreground: 140 22% 10%;
+	--secondary: 145 34% 19%;
+	--secondary-foreground: 145 40% 94%;
+	--ring: 140 58% 60%;
+	--chart-1: 142 50% 52%;
+	--chart-2: 218 82% 66%;
+	--chart-3: 70 68% 58%;
+	--chart-4: 280 76% 54%;
+	--chart-5: 358 72% 58%;
+}
+
+.dark.palette-cricket {
+	--background: 46 40% 7%;
+	--foreground: 46 44% 96%;
+	--card: 46 40% 9.5%;
+	--card-foreground: 46 44% 96%;
+	--popover: 46 40% 9.5%;
+	--popover-foreground: 46 44% 96%;
+	--muted: 46 42% 17%;
+	--muted-foreground: 46 46% 68%;
+	--accent: 30 52% 90%;
+	--accent-foreground: 30 24% 12%;
+	--border: 46 42% 20%;
+	--input: 46 42% 20%;
+	--primary: 116 46% 72%;
+	--primary-foreground: 116 24% 10%;
+	--secondary: 30 42% 19%;
+	--secondary-foreground: 30 48% 94%;
+	--ring: 116 46% 60%;
+	--chart-1: 92 44% 54%;
+	--chart-2: 250 80% 72%;
+	--chart-3: 20 68% 50%;
+	--chart-4: 164 68% 58%;
+	--chart-5: 312 68% 58%;
+}
+
+.dark.palette-beach {
+	--background: 38 48% 7%;
+	--foreground: 38 52% 96%;
+	--card: 38 48% 9.5%;
+	--card-foreground: 38 52% 96%;
+	--popover: 38 48% 9.5%;
+	--popover-foreground: 38 52% 96%;
+	--muted: 38 50% 17%;
+	--muted-foreground: 38 54% 68%;
+	--accent: 174 60% 90%;
+	--accent-foreground: 174 26% 12%;
+	--border: 38 50% 20%;
+	--input: 38 50% 20%;
+	--primary: 186 66% 72%;
+	--primary-foreground: 186 26% 10%;
+	--secondary: 174 50% 19%;
+	--secondary-foreground: 174 56% 94%;
+	--ring: 186 66% 60%;
+	--chart-1: 186 68% 52%;
+	--chart-2: 32 88% 60%;
+	--chart-3: 114 68% 70%;
+	--chart-4: 258 68% 60%;
+	--chart-5: 330 68% 58%;
+}
+
+.dark.palette-country {
+	--background: 40 30% 7%;
+	--foreground: 40 34% 96%;
+	--card: 40 30% 9.5%;
+	--card-foreground: 40 34% 96%;
+	--popover: 40 30% 9.5%;
+	--popover-foreground: 40 34% 96%;
+	--muted: 40 32% 17%;
+	--muted-foreground: 40 36% 68%;
+	--accent: 28 42% 90%;
+	--accent-foreground: 28 20% 12%;
+	--border: 40 32% 20%;
+	--input: 40 32% 20%;
+	--primary: 104 40% 72%;
+	--primary-foreground: 104 20% 10%;
+	--secondary: 28 32% 19%;
+	--secondary-foreground: 28 38% 94%;
+	--ring: 104 40% 60%;
+	--chart-1: 100 44% 66%;
+	--chart-2: 26 74% 50%;
+	--chart-3: 172 68% 58%;
+	--chart-4: 244 68% 62%;
+	--chart-5: 316 68% 58%;
+}
+
+.dark.palette-city {
+	--background: 214 22% 7%;
+	--foreground: 214 26% 96%;
+	--card: 214 22% 9.5%;
+	--card-foreground: 214 26% 96%;
+	--popover: 214 22% 9.5%;
+	--popover-foreground: 214 26% 96%;
+	--muted: 214 24% 17%;
+	--muted-foreground: 214 28% 68%;
+	--accent: 200 34% 90%;
+	--accent-foreground: 200 16% 12%;
+	--border: 214 24% 20%;
+	--input: 214 24% 20%;
+	--primary: 214 34% 72%;
+	--primary-foreground: 214 16% 10%;
+	--secondary: 200 24% 19%;
+	--secondary-foreground: 200 30% 94%;
+	--ring: 214 34% 60%;
+	--chart-1: 212 68% 70%;
+	--chart-2: 168 54% 46%;
+	--chart-3: 68 68% 58%;
+	--chart-4: 284 68% 58%;
+	--chart-5: 356 68% 58%;
+}
+
+/* v4 generates colour utilities (bg-primary, text-foreground, border-input, ...) from `--color-*`
+   theme variables read out of an `@theme` block, not from tailwind.config.js's
+   `theme.extend.colors` -- that file is not read by v4 without an explicit `@config` directive,
+   which this project has never had, so `bg-primary`/`border-border`/etc. utility classes were
+   never actually being generated before this. Mapped onto the same HSL custom properties
+   `:root`/`.dark` above already define, so light/dark theming is unchanged; `tailwind.config.js`
+   is removed as part of this change since its `theme.extend.colors` was dead weight. */
+@theme {
+	--color-border: hsl(var(--border));
+	--color-input: hsl(var(--input));
+	--color-ring: hsl(var(--ring));
+	--color-background: hsl(var(--background));
+	--color-foreground: hsl(var(--foreground));
+	--color-primary: hsl(var(--primary));
+	--color-primary-foreground: hsl(var(--primary-foreground));
+	--color-secondary: hsl(var(--secondary));
+	--color-secondary-foreground: hsl(var(--secondary-foreground));
+	--color-destructive: hsl(var(--destructive));
+	--color-destructive-foreground: hsl(var(--destructive-foreground));
+	--color-muted: hsl(var(--muted));
+	--color-muted-foreground: hsl(var(--muted-foreground));
+	--color-accent: hsl(var(--accent));
+	--color-accent-foreground: hsl(var(--accent-foreground));
+	--color-popover: hsl(var(--popover));
+	--color-popover-foreground: hsl(var(--popover-foreground));
+	--color-card: hsl(var(--card));
+	--color-card-foreground: hsl(var(--card-foreground));
+
+	--radius-lg: var(--radius);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-sm: calc(var(--radius) - 4px);
+}
+
+/* `--text-scale` is a multiplier on the root font-size, not a one-off override of individual
+   elements: Tailwind's `text-*` utilities (`text-sm`, `text-lg`, ...) are `rem`-based, so scaling
+   `html`'s `font-size` scales every one of them app-wide with no per-component overrides. `100%`
+   (not `16px`) keeps this relative to the browser's own font-size setting rather than overriding
+   it. */
+html {
+	font-size: calc(var(--text-scale) * 100%);
+}
+
+body {
+	background-color: hsl(var(--background));
+	color: hsl(var(--foreground));
+	font-family: var(--app-font-family);
+}

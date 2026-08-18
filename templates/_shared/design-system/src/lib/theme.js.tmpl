@@ -1,0 +1,145 @@
+/**
+ * Light/dark mode toggle. Ported from uk-wealth-tracker's `$lib/theme.js` (issue #116) --
+ * the dark palette lives as CSS custom properties in `../app.css` (the `.dark { ... }` block);
+ * this module owns applying/removing `.dark` on `<html>`, persisting the choice to
+ * `localStorage`, and resolving the default from `prefers-color-scheme` before any explicit
+ * choice has been made.
+ *
+ * SSR-safe: nothing here touches `document`/`window`/`localStorage` at import time, since
+ * `site/` prerenders every route (adapter-static). {@link theme} therefore starts at a fixed
+ * default on both server and client -- call {@link refreshTheme} from `onMount` to read the real
+ * value in and apply it.
+ *
+ * FOUC: by the time `onMount` runs, the page has already painted once. An inline script in
+ * `app.html` applies the stored/system theme to `<html>` before Svelte hydrates anything, using
+ * the same key and fallback order as {@link resolveTheme} below -- duplicated there deliberately,
+ * since `app.html` is static markup and can't import this module. Keep the two in sync if this
+ * logic changes.
+ */
+
+import { get, writable } from 'svelte/store';
+
+/** `localStorage` key holding the explicit theme choice, once one has been made. */
+export const THEME_STORAGE_KEY = '{{PROJECT_NAME}}:theme';
+
+/** @typedef {'light' | 'dark'} Theme */
+
+/**
+ * Accessing `localStorage`/`matchMedia` can *throw* rather than be undefined (Safari's "block all
+ * cookies", some enterprise policies), so these are try/catch guards rather than a `typeof` check
+ * alone.
+ *
+ * @returns {boolean}
+ */
+function hasLocalStorage() {
+	try {
+		return typeof localStorage !== 'undefined' && localStorage !== null;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * The explicit theme choice stored in this browser, if one has ever been made.
+ *
+ * @returns {Theme | undefined}
+ */
+export function getStoredTheme() {
+	if (!hasLocalStorage()) return undefined;
+	try {
+		const value = localStorage.getItem(THEME_STORAGE_KEY);
+		return value === 'light' || value === 'dark' ? value : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * The OS/browser's own colour-scheme preference. `'light'` when there is no window to ask
+ * (SSR/prerender) or the browser doesn't support the media query, rather than throwing.
+ *
+ * @returns {Theme}
+ */
+export function getSystemTheme() {
+	try {
+		if (typeof matchMedia !== 'function') return 'light';
+		return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+	} catch {
+		return 'light';
+	}
+}
+
+/**
+ * The theme that should be showing right now: the explicit choice if one exists, else the
+ * system preference. There is no third "system" mode stored; once the user picks light or dark
+ * via {@link setTheme}, that choice sticks even if their OS preference later changes.
+ *
+ * @returns {Theme}
+ */
+export function resolveTheme() {
+	return getStoredTheme() ?? getSystemTheme();
+}
+
+/**
+ * @param {Theme} value
+ */
+function applyTheme(value) {
+	try {
+		document.documentElement.classList.toggle('dark', value === 'dark');
+	} catch {
+		// No `document` (SSR) or a browser that refuses the write -- nothing further to do here;
+		// the inline script in app.html and the next successful call are what actually matter.
+	}
+}
+
+/**
+ * The active theme, as a store so the nav quick-toggle and the Settings page both re-render the
+ * moment either one changes it. Starts `'light'` (storage isn't readable during SSR/prerender) --
+ * call {@link refreshTheme} once on mount, which {@link setTheme} also keeps in sync afterwards.
+ *
+ * @type {import('svelte/store').Writable<Theme>}
+ */
+export const theme = writable(/** @type {Theme} */ ('light'));
+
+/**
+ * Re-resolve the theme from storage/system preference, apply it to `<html>`, and publish it to
+ * {@link theme}.
+ *
+ * @returns {Theme} The theme now applied.
+ */
+export function refreshTheme() {
+	const resolved = resolveTheme();
+	applyTheme(resolved);
+	theme.set(resolved);
+	return resolved;
+}
+
+/**
+ * Set and persist an explicit theme choice.
+ *
+ * @param {Theme} value
+ * @returns {Theme} `value`, unchanged -- returned so callers can chain it.
+ */
+export function setTheme(value) {
+	applyTheme(value);
+	theme.set(value);
+	if (hasLocalStorage()) {
+		try {
+			localStorage.setItem(THEME_STORAGE_KEY, value);
+		} catch {
+			// Best effort: the theme is already applied for this page view even if it can't be
+			// remembered for the next one.
+		}
+	}
+	return value;
+}
+
+/**
+ * Flip between light and dark, off whatever {@link theme} currently holds -- the nav quick-toggle's
+ * one action.
+ *
+ * @returns {Theme} The theme now applied.
+ */
+export function toggleTheme() {
+	return setTheme(get(theme) === 'dark' ? 'light' : 'dark');
+}

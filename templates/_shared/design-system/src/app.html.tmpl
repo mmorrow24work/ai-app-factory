@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<script>
+			// Dark mode, applied before Svelte hydrates so the first paint is never the wrong
+			// theme. Mirrors `$lib/theme.js`'s `resolveTheme()` (stored choice, else the OS
+			// preference) -- duplicated here because this file is static markup and can't import
+			// that module. Keep the two in sync if this logic changes.
+			(function () {
+				try {
+					var stored = localStorage.getItem('{{PROJECT_NAME}}:theme');
+					var dark =
+						stored === 'dark' ||
+						(stored !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+					if (dark) document.documentElement.classList.add('dark');
+				} catch (e) {}
+			})();
+
+			// Font family and text size preferences, applied before Svelte hydrates for the same
+			// reason as dark mode above. Mirrors `$lib/typography.js`'s `resolveFontFamily()`/
+			// `resolveTextSize()` (stored choice, else the app default -- there is no OS preference
+			// to fall back to here, unlike theme) -- duplicated here because this file is static
+			// markup and can't import that module. Keep the two in sync if this logic changes.
+			(function () {
+				try {
+					var family = localStorage.getItem('{{PROJECT_NAME}}:font-family');
+					var familyClasses = {
+						serif: 'font-serif',
+						rounded: 'font-rounded',
+						mono: 'font-mono'
+					};
+					if (familyClasses[family]) document.documentElement.classList.add(familyClasses[family]);
+
+					var size = localStorage.getItem('{{PROJECT_NAME}}:text-size');
+					if (size === 'small') document.documentElement.classList.add('text-scale-small');
+					else if (size === 'large') document.documentElement.classList.add('text-scale-large');
+				} catch (e) {}
+			})();
+
+			// Named colour palette, applied before Svelte hydrates for the same reason as the two
+			// above. Mirrors `$lib/palette.js`'s `resolvePalette()`; the name list is the same one
+			// `PALETTES` holds there, duplicated because this file is static markup and can't import
+			// that module.
+			(function () {
+				try {
+					var palettes = ['male', 'female', 'football', 'cricket', 'beach', 'country', 'city'];
+					var palette = localStorage.getItem('{{PROJECT_NAME}}:palette');
+					if (palettes.indexOf(palette) !== -1) {
+						document.documentElement.classList.add('palette-' + palette);
+					}
+				} catch (e) {}
+			})();
+		</script>
+		%sveltekit.head%
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>
