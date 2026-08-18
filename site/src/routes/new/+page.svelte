@@ -4,9 +4,14 @@
 	const REPO = 'mmorrow24work/ai-app-factory';
 	const INTAKE_LABEL = 'new-project-ask';
 	const INTAKE_TITLE_MARKER = '[new-project-ask] ';
+	const BODY_PLACEHOLDER =
+		'(Paste your full requirements here -- already copied to your clipboard. Press Ctrl/Cmd+V to replace this text before submitting.)';
 
 	let projectName = $state('');
 	let requirements = $state('');
+
+	/** @type {'idle' | 'opened' | 'clipboard-failed'} */
+	let status = $state('idle');
 
 	/**
 	 * Builds a pre-filled "New issue" link rather than calling any authenticated API -- no
@@ -23,21 +28,38 @@
 	 * here only as a harmless best-effort convenience for collaborators -- the workflow applies
 	 * the label itself server-side regardless, for bookkeeping only.
 	 *
+	 * Requirements text is deliberately NOT put in this URL -- GitHub enforces a hard URL
+	 * length limit ("Whoa there! Your request URL is too long") that anything beyond a short
+	 * paragraph blows straight through, found live 2026-08-18 with a real multi-section spec.
+	 * The body here is a short, constant placeholder instead; the real text goes to the
+	 * clipboard in `submit()` for the visitor to paste over it on GitHub's own page, which has
+	 * no such limit.
+	 *
 	 * @returns {string}
 	 */
 	function intakeIssueUrl() {
 		const params = new URLSearchParams({
 			title: `${INTAKE_TITLE_MARKER}${projectName.trim()}`,
-			body: requirements.trim(),
+			body: BODY_PLACEHOLDER,
 			labels: INTAKE_LABEL
 		});
 		return `https://github.com/${REPO}/issues/new?${params.toString()}`;
 	}
 
 	/** @param {SubmitEvent} event */
-	function submit(event) {
+	async function submit(event) {
 		event.preventDefault();
-		window.location.href = intakeIssueUrl();
+
+		try {
+			await navigator.clipboard.writeText(requirements.trim());
+			status = 'opened';
+		} catch {
+			// Clipboard API can fail (older browser, permissions, non-secure context) -- the
+			// form's own textarea still has the text, so the visitor can copy it by hand.
+			status = 'clipboard-failed';
+		}
+
+		window.open(intakeIssueUrl(), '_blank', 'noopener');
 	}
 </script>
 
@@ -53,9 +75,11 @@
 		> and opens it as a pull request for review.
 	</p>
 	<p class="mt-2 text-muted-foreground">
-		Submitting takes you to GitHub to finish as an issue there -- no account setup on this site, no
-		token to paste. Your GitHub account is the only thing recorded as the requester, so you'll need
-		to be signed in to GitHub to submit.
+		Submitting opens GitHub in a new tab to finish as an issue there -- no account setup on this
+		site, no token to paste. Your GitHub account is the only thing recorded as the requester, so
+		you'll need to be signed in to GitHub to submit. Long requirements are copied to your clipboard
+		rather than put in the link, since GitHub rejects a link that's too long -- paste (Ctrl/Cmd+V)
+		over the placeholder text once you land there.
 	</p>
 
 	<form class="mt-6 flex flex-col gap-4" onsubmit={submit}>
@@ -74,12 +98,23 @@
 				required
 				bind:value={requirements}
 				rows="6"
-				placeholder="What should this project do? Rough notes are fine."
+				placeholder="What should this project do? Rough notes are fine -- as long as you like, it never goes in a URL."
 				class="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground"
 			></textarea>
 		</label>
 		<div>
 			<Button type="submit">Continue on GitHub →</Button>
 		</div>
+		{#if status === 'opened'}
+			<p class="text-sm text-foreground">
+				Copied your requirements to the clipboard and opened GitHub in a new tab -- paste
+				(Ctrl/Cmd+V) over the placeholder text there, replacing it, before submitting the issue.
+			</p>
+		{:else if status === 'clipboard-failed'}
+			<p class="text-sm text-destructive">
+				Opened GitHub in a new tab, but couldn't copy automatically -- copy your requirements from
+				the field above by hand and paste them over the placeholder text there.
+			</p>
+		{/if}
 	</form>
 </article>
