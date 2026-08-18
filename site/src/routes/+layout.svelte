@@ -15,7 +15,7 @@
 	 * @param {string} repo
 	 */
 	function isActiveProject(pathname, repo) {
-		return pathname === `/projects/${encodeURIComponent(repo)}`;
+		return pathname === `/projects/${repo}`;
 	}
 </script>
 
@@ -41,9 +41,10 @@
 					<ul class="flex flex-col gap-1 list-none m-0 p-0">
 						{#each projects as project (project.repo)}
 							{@const active = isActiveProject(page.url.pathname, project.repo)}
+							{@const [owner, name] = project.repo.split('/')}
 							<li>
 								<a
-									href={resolve(`/projects/${encodeURIComponent(project.repo)}`)}
+									href={resolve('/projects/[owner]/[name]', { owner, name })}
 									aria-current={active ? 'page' : undefined}
 									class="block px-3 py-1.5 rounded text-foreground no-underline text-sm hover:bg-accent hover:text-accent-foreground {active
 										? 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground'
