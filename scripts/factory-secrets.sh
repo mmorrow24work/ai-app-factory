@@ -131,6 +131,22 @@ if [ -z "${GH_PAT:-}" ]; then
 fi
 [ -n "$GH_PAT" ] || die "GH_PAT must not be empty"
 
+# Feedback only -- masks everything but the last 3 characters so a paste error
+# (wrong clipboard contents, truncated paste, stray whitespace) is catchable
+# before it's written anywhere, without meaningfully exposing the secret. Found
+# worth having the hard way earlier in this project: a corrupted interactive
+# paste produced a silently-wrong token that only surfaced as an opaque 401
+# several steps later.
+pat_len=${#GH_PAT}
+if [ "$pat_len" -gt 3 ]; then
+  pat_suffix="${GH_PAT: -3}"
+  pat_mask=$(printf '%*s' $((pat_len - 3)) '' | tr ' ' '*')
+else
+  pat_suffix=""
+  pat_mask=$(printf '%*s' "$pat_len" '' | tr ' ' '*')
+fi
+echo "Read GH_PAT: ${pat_mask}${pat_suffix} ($pat_len chars) -- Ctrl-C now if that doesn't look right"
+
 echo "Setting secrets on $OWNER/$REPO_NAME..."
 gh secret set CLAUDE_CODE_OAUTH_TOKEN --repo "$OWNER/$REPO_NAME" --body "$CLAUDE_CODE_OAUTH_TOKEN"
 gh secret set GH_PAT --repo "$OWNER/$REPO_NAME" --body "$GH_PAT"
