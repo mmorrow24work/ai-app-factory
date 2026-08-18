@@ -103,6 +103,15 @@ jobs:
           # most needs a human's attention, was firing zero notifications. github-actions[bot]
           # opening it is a genuinely different actor, so it notifies normally.
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          # claude-code-action refuses to run for a workflow_dispatch initiated by a bot actor
+          # by default -- and the whole point of the github_token choice above is that this
+          # job's workflow_dispatch re-fire (from the dispatch job's `gh workflow run`, using
+          # GITHUB_TOKEN) shows up as actor github-actions[bot], not the human who merged.
+          # Found live, 2026-08-18: "Workflow initiated by non-human actor: github-actions
+          # (type: Bot)." Scoped to exactly that one bot, not '*', since this workflow only
+          # ever self-dispatches in response to a real push to main from a real human merge --
+          # there's no arbitrary-bot surface here to worry about.
+          allowed_bots: "github-actions[bot]"
           track_progress: false
           base_branch: main
           prompt: |
