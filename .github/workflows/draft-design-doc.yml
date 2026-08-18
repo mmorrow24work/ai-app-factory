@@ -5,12 +5,23 @@ name: draft-design-doc
 # issue via the site's /new page) into a drafted design doc, opened as a PR against this
 # repo's main for human review.
 #
-# Triggered on `issues: opened`, filtered to the `new-project-ask` label -- /new builds a
-# pre-filled `issues/new?title=...&body=...&labels=new-project-ask` link rather than calling
-# any authenticated API, so no credential of any kind ever touches the requester's browser.
-# The issue's author (an authenticated GitHub identity, not a self-reported form field) is the
-# requester's identity for the rest of the pipeline. A `workflow_dispatch` fallback exists
-# purely to retry a failed run against an already-open issue -- normal submissions never use it.
+# Triggered on `issues: opened`, filtered to a `[new-project-ask] ` title prefix -- /new builds
+# a pre-filled `issues/new?title=[new-project-ask] ...&body=...&labels=new-project-ask` link
+# rather than calling any authenticated API, so no credential of any kind ever touches the
+# requester's browser. The issue's author (an authenticated GitHub identity, not a
+# self-reported form field) is the requester's identity for the rest of the pipeline.
+#
+# Filtering on the title prefix, not the label, is deliberate and load-bearing: GitHub only
+# applies a `labels=` query param on an issues/new deep link for users who already have
+# label-write permission on the target repo -- for anyone else it's silently dropped, the
+# issue opens unlabeled, and (found the hard way via a real end-to-end test on 2026-08-18,
+# opened by the repo owner, who has that permission and so couldn't have caught this) nothing
+# would have fired and the requester would get no feedback at all. `title`/`body` query params
+# have no such restriction -- they're always honoured, for any GitHub user. This step also
+# applies the label itself server-side once resolved, for bookkeeping/search only, never for
+# triggering. A `workflow_dispatch` fallback exists purely to retry a failed run against an
+# already-open issue -- normal submissions never use it, and it bypasses the prefix check
+# entirely since it names the issue explicitly.
 #
 # The target project's own repo doesn't exist yet at this stage -- DESIGN.md's M6 only runs
 # once this PR is approved and merged -- so the draft is staged in *this* repo under
@@ -40,7 +51,7 @@ permissions:
 
 jobs:
   draft:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.issue.labels.*.name, 'new-project-ask')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.issue.title, '[new-project-ask] ')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -64,6 +75,15 @@ jobs:
           title=$(jq -r '.title' <<<"$data")
           login=$(jq -r '.author.login' <<<"$data")
           [ -n "$title" ] || { echo "Issue #$number has no title" >&2; exit 1; }
+
+          marker='[new-project-ask] '
+          if [[ "$title" == "$marker"* ]]; then
+            title="${title#"$marker"}"
+          fi
+
+          # Bookkeeping/search only -- never load-bearing for triggering, see the header
+          # comment on why the label itself can't be trusted for that.
+          gh issue edit "$number" --repo "${{ github.repository }}" --add-label new-project-ask || true
 
           slug=$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
           if [ -z "$slug" ]; then

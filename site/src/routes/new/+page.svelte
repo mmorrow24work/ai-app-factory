@@ -3,6 +3,7 @@
 
 	const REPO = 'mmorrow24work/ai-app-factory';
 	const INTAKE_LABEL = 'new-project-ask';
+	const INTAKE_TITLE_MARKER = '[new-project-ask] ';
 
 	let projectName = $state('');
 	let requirements = $state('');
@@ -10,16 +11,23 @@
 	/**
 	 * Builds a pre-filled "New issue" link rather than calling any authenticated API -- no
 	 * GitHub token of any kind is needed to submit an ask. draft-design-doc.yml triggers on
-	 * `issues: opened` (filtered to the new-project-ask label) and reads the issue's title/body
-	 * directly; the issue's author becomes the requester's identity, authenticated by GitHub's
-	 * own login rather than typed into a form field. See DESIGN.md's "Write path" and
-	 * "Requester PII is deliberately minimized".
+	 * `issues: opened`, filtered to the `[new-project-ask] ` title prefix, and reads the
+	 * issue's title/body directly; the issue's author becomes the requester's identity,
+	 * authenticated by GitHub's own login rather than typed into a form field.
+	 *
+	 * The title prefix carries the trigger, not the `labels` param below -- GitHub silently
+	 * drops `labels=` on this URL for anyone who isn't already a collaborator with label-write
+	 * access on the target repo (found via a real end-to-end test, see DESIGN.md's "Write
+	 * path"), which would otherwise make submission fail silently for exactly the arbitrary
+	 * requester this flow exists for. `title`/`body` have no such restriction. `labels` is kept
+	 * here only as a harmless best-effort convenience for collaborators -- the workflow applies
+	 * the label itself server-side regardless, for bookkeeping only.
 	 *
 	 * @returns {string}
 	 */
 	function intakeIssueUrl() {
 		const params = new URLSearchParams({
-			title: projectName.trim(),
+			title: `${INTAKE_TITLE_MARKER}${projectName.trim()}`,
 			body: requirements.trim(),
 			labels: INTAKE_LABEL
 		});

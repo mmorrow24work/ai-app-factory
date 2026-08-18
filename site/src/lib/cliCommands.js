@@ -61,9 +61,9 @@ export const CLI_STAGES = [
 		commands: [
 			{
 				command:
-					'gh issue create --repo mmorrow24work/ai-app-factory --title "<name>" --body "<ask>" --label new-project-ask',
+					'gh issue create --repo mmorrow24work/ai-app-factory --title "[new-project-ask] <name>" --body "<ask>"',
 				who: 'Human, via the `/new` page (a pre-filled link to this exact GitHub issue form — no token, no account setup on the site itself)',
-				when: 'M5 — draft-design-doc.yml triggers on issues: opened (filtered to the new-project-ask label), Opus drafts docs/proposals/<slug>.md and opens a "Design: <name>" PR against main for review; the issue author\'s GitHub login is stamped onto the doc and PR as the authenticated requester identity, then the intake issue is closed.',
+				when: 'M5 — draft-design-doc.yml triggers on issues: opened, filtered to the [new-project-ask] title prefix rather than a label (GitHub silently drops labels= on this URL for non-collaborators — found via a real end-to-end test on 2026-08-18). Opus drafts docs/proposals/<slug>.md and opens a "Design: <name>" PR against main for review; the issue author\'s GitHub login is stamped onto the doc and PR as the authenticated requester identity, then the intake issue is closed.',
 				source: '.github/workflows/draft-design-doc.yml'
 			}
 		]
