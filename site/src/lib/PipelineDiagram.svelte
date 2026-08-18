@@ -17,16 +17,16 @@
 			body: 'An AI coding agent works with GitHub to write the code and open pull requests.'
 		},
 		{
-			title: 'You approve each change',
-			body: 'The requester -- not the project owner -- approves or rejects each pull request on this site as the app is built.'
+			title: 'You approve or redirect each change',
+			body: 'The requester -- not the project owner -- approves or rejects each pull request on this site, and can comment @claude any time to give feedback or direct a change mid-build.'
 		},
 		{
 			title: 'Host it on GitHub',
 			body: 'The finished app is published and hosted using GitHub.'
 		},
 		{
-			title: 'Fork it to make changes',
-			body: 'Anyone who wants to extend or customize the app forks it on GitHub -- it’s theirs from there.'
+			title: 'Fork or clone it to take it further',
+			body: 'Fork on GitHub to keep it connected and optionally keep the pipeline running under your own account; clone it if you just want the code with no strings attached.'
 		},
 		{
 			title: 'Original archived after 7 days',

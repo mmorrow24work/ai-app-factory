@@ -15,8 +15,8 @@ export const CLI_STAGES = [
 			},
 			{
 				command: '@claude <comment>  (posted on an issue or PR)',
-				who: 'Human (OWNER, MEMBER, or COLLABORATOR)',
-				when: 'A comment containing "@claude" from an authorized author re-fires the workflow via its issue_comment trigger.',
+				who: 'Human — a repo collaborator, or the project’s own recorded requester (parsed from README.md’s "Requested by" line, not just OWNER/MEMBER/COLLABORATOR as of 2026-08-18)',
+				when: 'A comment containing "@claude" re-fires the workflow via its issue_comment trigger; the comment’s own text is read into the prompt (a real bug, fixed the same day it was found: the text used to be discarded, the comment only ever acted as a re-trigger signal), so this is also how a requester gives feedback or redirects work mid-build, not just approve/reject on something already drafted.',
 				source: '.github/workflows/claude.yml'
 			},
 			{
@@ -131,6 +131,30 @@ export const CLI_STAGES = [
 				who: 'Workflow (seed-milestones.yml)',
 				when: 'Files one or more issues per milestone with an acceptance-criteria checklist; applies claude-go only to issues concrete enough for the unattended pipeline.',
 				source: 'templates/<type>/.github/workflows/seed-milestones.yml'
+			}
+		]
+	},
+	{
+		stage: 'Review & decisions during the build',
+		commands: [
+			{
+				command: 'gh issue create --repo <owner>/<repo> --title "[review-approve] PR #<n>"',
+				who: 'Human — the project’s own recorded requester, or the repo owner (via the "Pending decisions" section on that project’s dashboard page, a pre-filled link — or hand-constructed)',
+				when: 'Implemented 2026-08-18. review-decision.yml triggers on issues: opened, filtered to a [review-approve]/[review-reject] title prefix (not a label — same labels=-is-dropped-for-non-collaborators reasoning as intake). Parses the referenced PR number from the title and merges (squash + delete branch) if authorized.',
+				source: 'templates/<type>/.github/workflows/review-decision.yml'
+			},
+			{
+				command: 'gh issue create --repo <owner>/<repo> --title "[review-reject] PR #<n>"',
+				who: 'Human — same authorization as above',
+				when: 'Same mechanism, opposite action: closes the referenced PR without merging and deletes its branch.',
+				source: 'templates/<type>/.github/workflows/review-decision.yml'
+			},
+			{
+				command:
+					"grep -oE '\\[@[A-Za-z0-9-]+\\]\\(https://github\\.com/[A-Za-z0-9-]+\\)' README.md",
+				who: 'Workflow (review-decision.yml and claude.yml’s Authorize step)',
+				when: 'Recovers the project’s recorded requester login from its own README "Requested by" line — the only source of truth for who besides a collaborator is allowed to approve/reject a PR or direct changes via @claude. A repo predating that line (no match) falls through to collaborator/owner-only, not an error.',
+				source: 'templates/<type>/.github/workflows/review-decision.yml'
 			}
 		]
 	}
