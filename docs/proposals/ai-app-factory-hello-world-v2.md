@@ -1,5 +1,7 @@
 # Design: ai-app-factory-hello-world-v2
 
+**Requested by:** @mmorrow2012
+
 ## Problem
 
 `ai-app-factory-hello-world` (v1, provisioned 2026-08-17) was the factory's second dogfood run and it did most of its job: three `claude-go` issues ran unattended and succeeded, `docs/journal.md` accumulated one metrics entry per run, `pages-deploy.yml` deployed on merge, and the site went live at `https://mmorrow24work.github.io/ai-app-factory-hello-world/`. Everything from *seeding* onward is proven.
