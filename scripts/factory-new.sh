@@ -251,9 +251,17 @@ render_content() {
   local content
   content="$(cat "$1"; printf 'x')"
   content="${content%x}"
-  local key
+  local key escaped
   for key in "${!VALUES[@]}"; do
-    content="${content//"{{$key}}"/${VALUES[$key]}}"
+    # Bash 5.1+'s ${var//pattern/replacement} treats an unescaped `&` in the
+    # replacement text as "the matched pattern" (sed-style), not a literal
+    # ampersand -- found the hard way when a value containing "Support &
+    # feedback" silently spliced the literal `{{key}}` token back into the
+    # middle of its own replacement text. Escape `\` first, then `&`, so this
+    # is deterministic regardless of the running bash version's default.
+    escaped="${VALUES[$key]//\\/\\\\}"
+    escaped="${escaped//&/\\&}"
+    content="${content//"{{$key}}"/$escaped}"
   done
   printf '%s' "$content"
 }
