@@ -3,6 +3,7 @@
 	import TokenBurnChart from '$lib/TokenBurnChart.svelte';
 	import SessionStatusBadge from '$lib/SessionStatusBadge.svelte';
 	import CommitHeatmap from '$lib/CommitHeatmap.svelte';
+	import PendingDecisions from '$lib/PendingDecisions.svelte';
 
 	let { data } = $props();
 	let project = $derived(data.project);
@@ -48,6 +49,8 @@
 
 	<h2 class="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Ask</h2>
 	<p class="mt-2 text-foreground whitespace-pre-wrap">{project.ask}</p>
+
+	<PendingDecisions repo={project.repo} />
 
 	<a
 		href="https://github.com/{project.repo}"

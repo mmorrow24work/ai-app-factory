@@ -57,6 +57,19 @@ export function listIssues(repo, opts = {}) {
 }
 
 /**
+ * @typedef {{number: number, title: string, html_url: string, created_at: string, user: {login: string}}} PullRequest
+ */
+
+/**
+ * @param {string} repo "owner/name"
+ * @param {GithubRequestOpts} [opts]
+ * @returns {Promise<PullRequest[]>}
+ */
+export function listOpenPullRequests(repo, opts = {}) {
+	return githubRequest(`/repos/${repo}/pulls?state=open&per_page=100`, opts);
+}
+
+/**
  * @param {string} repo "owner/name"
  * @param {GithubRequestOpts} [opts]
  */
