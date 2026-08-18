@@ -1,5 +1,7 @@
 # Design: ai-app-factory-hello-world-v4
 
+**Requested by:** @mmorrow2012
+
 ## Problem
 
 This is the fourth design doc drafted from the identical one-sentence ask — *"Create a simple hello-world site to test the ai-app-factory build process"* — after `ai-app-factory-hello-world` (#31), v2 (#40, which produced nothing), and v3 (#41). A fourth is only defensible if it tests something the first three structurally could not, so the first job of this doc is to establish, from live evidence rather than assumption, what is actually still unproven at the moment it was written.
