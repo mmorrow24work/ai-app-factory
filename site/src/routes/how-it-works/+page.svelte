@@ -10,30 +10,27 @@
 <article class="max-w-3xl">
 	<h1 class="text-2xl font-semibold text-foreground">How it works</h1>
 	<p class="mt-2 text-muted-foreground">
-		Every tracked project runs on the same unattended build pipeline, "Lane B". The diagram below
-		shows the full loop as built: per-issue execution, plus the ask → design → provision → seed loop
-		that turns a vague idea into a repo full of claude-go-labeled issues. Two steps in that loop are
-		human approval gates, not automated hops — marked with a person icon. The reference panel below
-		that lists the real <code class="text-foreground">gh</code> commands the system runs, sourced from
-		this repo's own workflow and script files.
+		ai-app-factory turns an idea into a real, working app -- built and hosted using GitHub. Two
+		steps along the way are check-ins with the project owner, so nothing gets built or thrown away
+		without a person approving it first.
 	</p>
 
 	<section class="mt-8">
 		<h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-			Pipeline diagram
+			The workflow
 		</h2>
-		<div class="mt-3 rounded-lg border border-border bg-card p-4">
+		<div class="mt-3">
 			<PipelineDiagram />
 		</div>
 	</section>
 
 	<section class="mt-10">
 		<h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-			gh CLI command reference
+			Technical detail: the real commands
 		</h2>
 		<p class="mt-2 text-sm text-muted-foreground">
-			Grouped by pipeline stage, every command sourced from a file that exists in this repo today —
-			no stage here is still hypothetical.
+			Curious what actually runs behind each step above? Every command below is sourced from a file
+			that exists in this repo today, grouped by stage.
 		</p>
 
 		<div class="mt-4 flex flex-col gap-3">

@@ -61,9 +61,9 @@ export const CLI_STAGES = [
 		commands: [
 			{
 				command:
-					'gh workflow run draft-design-doc.yml -R mmorrow24work/ai-app-factory -f project_name="<name>" -f requirements="<ask>"',
+					'gh workflow run draft-design-doc.yml -R mmorrow24work/ai-app-factory -f project_name="<name>" -f requirements="<ask>" -f requester_name="<name>" -f requester_email="<email>" -f requester_phone="<phone>"',
 				who: 'Human, via the `/new` page (PAT pasted into /settings authenticates the call)',
-				when: 'M5 — Opus drafts docs/proposals/<slug>.md and opens a "Design: <name>" PR against main for review.',
+				when: 'M5 — Opus drafts docs/proposals/<slug>.md and opens a "Design: <name>" PR against main for review; requester name/email/phone are stamped onto the doc and PR directly from these inputs.',
 				source: '.github/workflows/draft-design-doc.yml'
 			}
 		]
