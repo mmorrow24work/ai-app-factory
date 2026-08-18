@@ -61,9 +61,9 @@ export const CLI_STAGES = [
 		commands: [
 			{
 				command:
-					'gh workflow run draft-design-doc.yml -R mmorrow24work/ai-app-factory -f project_name="<name>" -f requirements="<ask>" -f requester_name="<name>" -f requester_email="<email>" -f requester_phone="<phone>"',
-				who: 'Human, via the `/new` page (PAT pasted into /settings authenticates the call)',
-				when: 'M5 — Opus drafts docs/proposals/<slug>.md and opens a "Design: <name>" PR against main for review; requester name/email/phone are stamped onto the doc and PR directly from these inputs.',
+					'gh issue create --repo mmorrow24work/ai-app-factory --title "<name>" --body "<ask>" --label new-project-ask',
+				who: 'Human, via the `/new` page (a pre-filled link to this exact GitHub issue form — no token, no account setup on the site itself)',
+				when: 'M5 — draft-design-doc.yml triggers on issues: opened (filtered to the new-project-ask label), Opus drafts docs/proposals/<slug>.md and opens a "Design: <name>" PR against main for review; the issue author\'s GitHub login is stamped onto the doc and PR as the authenticated requester identity, then the intake issue is closed.',
 				source: '.github/workflows/draft-design-doc.yml'
 			}
 		]

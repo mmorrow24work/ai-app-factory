@@ -6,7 +6,7 @@
 	const steps = [
 		{
 			title: 'Request a new app',
-			body: 'Describe what you want, along with your name, email, and phone.'
+			body: 'Describe what you want, submitted from your GitHub account.'
 		},
 		{
 			title: 'Approve it',

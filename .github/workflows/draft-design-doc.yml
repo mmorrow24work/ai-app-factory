@@ -1,54 +1,46 @@
 name: draft-design-doc
 
-# M5: turns a vague ask (project name + freeform requirements text, submitted from the
-# site's /new page) into a drafted design doc, opened as a PR against this repo's main for
-# human review. Only reachable via workflow_dispatch, fired by the browser using the PAT
-# pasted into /settings -- see DESIGN.md's "write path" for why this lives in Actions
-# rather than a server route (site/ is 100% static and never holds secrets).
+# M5 (redesigned 2026-08-18, see DESIGN.md's "Write path" and "Requester PII is deliberately
+# minimized"): turns a vague ask (project name + freeform requirements, submitted as a GitHub
+# issue via the site's /new page) into a drafted design doc, opened as a PR against this
+# repo's main for human review.
 #
-# The target project's own repo doesn't exist yet at this stage -- DESIGN.md's M6
-# ("creating the target repo from the right template first, if new") only runs once this
-# PR is approved and merged -- so the draft is staged in *this* repo under docs/proposals/
-# until M6 promotes it.
+# Triggered on `issues: opened`, filtered to the `new-project-ask` label -- /new builds a
+# pre-filled `issues/new?title=...&body=...&labels=new-project-ask` link rather than calling
+# any authenticated API, so no credential of any kind ever touches the requester's browser.
+# The issue's author (an authenticated GitHub identity, not a self-reported form field) is the
+# requester's identity for the rest of the pipeline. A `workflow_dispatch` fallback exists
+# purely to retry a failed run against an already-open issue -- normal submissions never use it.
 #
-# requester_name/email/phone are mandatory so whoever approves the PR can see exactly who
-# is asking before merging. They're deliberately NOT left to the LLM step below to write --
-# a follow-up step stamps them onto the doc and the PR body directly from the raw inputs,
-# so this can't be skipped or paraphrased. The same "**Requested by:**" line then travels
-# forward into generate-issues.yml, which reads it back out of the design doc to pass
-# --set REQUESTER_NAME=... etc. to factory-new.sh, landing it in the new repo's README.md.
+# The target project's own repo doesn't exist yet at this stage -- DESIGN.md's M6 only runs
+# once this PR is approved and merged -- so the draft is staged in *this* repo under
+# docs/proposals/ until M6 promotes it.
+#
+# The "**Requested by:**" line is deliberately NOT left to the LLM step to write -- a
+# follow-up step stamps it onto the doc and the PR body directly from the issue's own author
+# field, so this can't be skipped, paraphrased, or spoofed. That line travels forward into
+# generate-issues.yml, which reads it back out of the design doc to pass
+# --set REQUESTER_GITHUB=... to factory-new.sh, landing it in the new repo's README.md.
 
 on:
+  issues:
+    types: [opened]
   workflow_dispatch:
     inputs:
-      project_name:
-        description: "Name of the new project"
-        required: true
-        type: string
-      requirements:
-        description: "Vague requirements / ask for the new project, as typed by the requester"
-        required: true
-        type: string
-      requester_name:
-        description: "Name of the person requesting this project"
-        required: true
-        type: string
-      requester_email:
-        description: "Email of the person requesting this project"
-        required: true
-        type: string
-      requester_phone:
-        description: "Phone number of the person requesting this project"
+      issue_number:
+        description: "Intake issue to (re)process -- only for retrying a failed run; issues: opened handles normal submissions automatically"
         required: true
         type: string
 
 permissions:
   contents: write
   pull-requests: write
+  issues: write
   id-token: write
 
 jobs:
   draft:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.issue.labels.*.name, 'new-project-ask')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -56,19 +48,59 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Compute slug
-        id: slug
+      - name: Resolve the intake issue
+        id: issue
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          slug=$(printf '%s' "${{ inputs.project_name }}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            number="${{ inputs.issue_number }}"
+          else
+            number="${{ github.event.issue.number }}"
+          fi
+
+          data=$(gh issue view "$number" --repo "${{ github.repository }}" --json number,title,body,author)
+          title=$(jq -r '.title' <<<"$data")
+          login=$(jq -r '.author.login' <<<"$data")
+          [ -n "$title" ] || { echo "Issue #$number has no title" >&2; exit 1; }
+
+          slug=$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g')
           if [ -z "$slug" ]; then
-            echo "Project name '${{ inputs.project_name }}' produced an empty slug" >&2
+            echo "Issue title '$title' produced an empty slug" >&2
             exit 1
           fi
-          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+
+          delim="EOF_$(openssl rand -hex 8)"
+          {
+            echo "number=$number"
+            echo "title=$title"
+            echo "login=$login"
+            echo "slug=$slug"
+            echo "body<<$delim"
+            jq -r '.body' <<<"$data"
+            echo "$delim"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Skip if already processed
+        id: dedupe
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          existing=$(gh pr list --repo "${{ github.repository }}" \
+            --search "\"Design: ${{ steps.issue.outputs.title }}\" in:title" \
+            --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            echo "PR #$existing already exists for this ask -- skipping (idempotent re-run)"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: anthropics/claude-code-action@v1
         id: claude
+        if: steps.dedupe.outputs.skip == 'false'
         with:
           # Same subscription-auth rationale as claude.yml: claude_code_oauth_token, not
           # anthropic_api_key, so this doesn't bill API usage on top of the subscription.
@@ -77,15 +109,16 @@ jobs:
           track_progress: false
           base_branch: main
           prompt: |
-            Draft a design doc for a new project proposed through the factory's intake form.
+            Draft a design doc for a new project proposed through the factory's intake issue,
+            #${{ steps.issue.outputs.number }}.
 
             ## Project name
 
-            ${{ inputs.project_name }}
+            ${{ steps.issue.outputs.title }}
 
             ## Requirements (as given -- vague or incomplete is expected; this is a first draft)
 
-            ${{ inputs.requirements }}
+            ${{ steps.issue.outputs.body }}
 
             ## Instructions
 
@@ -97,9 +130,9 @@ jobs:
                (Problem / Goal / Non-goals / Architecture / Milestones) and follow its
                shape, adapting sections to fit -- don't force a section that doesn't
                apply to this project.
-            2. Create a new branch named `design/${{ steps.slug.outputs.slug }}`.
-            3. Write the drafted design doc to `docs/proposals/${{ steps.slug.outputs.slug }}.md`
-               on that branch, starting with a single `# Design: ${{ inputs.project_name }}`
+            2. Create a new branch named `design/${{ steps.issue.outputs.slug }}`.
+            3. Write the drafted design doc to `docs/proposals/${{ steps.issue.outputs.slug }}.md`
+               on that branch, starting with a single `# Design: ${{ steps.issue.outputs.title }}`
                line as the very first line of the file (a later step inserts a requester-info
                line right after it -- don't add your own "Requested by" section, and don't put
                anything else on that first line). This repo's own root DESIGN.md is this repo's
@@ -107,10 +140,10 @@ jobs:
                repo yet, so the draft is staged here for review until a later workflow
                promotes it.
             4. Open a pull request against `main` titled
-               `Design: ${{ inputs.project_name }}`, with a description that summarizes the
-               drafted design and invites review/edits in this PR. Do not merge it -- review
+               `Design: ${{ steps.issue.outputs.title }}`, with a description that summarizes
+               the drafted design and invites review/edits in this PR. Do not merge it -- review
                and editing happens in the PR's normal GitHub review UI. A later step prepends
-               requester contact info to your PR description -- don't add your own.
+               requester identity to your PR description -- don't add your own.
 
             This is a design proposal for a new project, not an implementation of an issue
             in this repo -- there is no "Closes #N" line to add.
@@ -119,14 +152,15 @@ jobs:
             --max-turns 100
             --allowedTools "Bash(git:*),Bash(gh:*),Bash(mkdir:*),Edit,Read,Write,Glob,Grep"
 
-      - name: Stamp requester info onto the design doc and PR
+      - name: Stamp requester identity, then close the intake issue
+        if: steps.dedupe.outputs.skip == 'false'
         env:
           GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          branch="design/${{ steps.slug.outputs.slug }}"
-          doc="docs/proposals/${{ steps.slug.outputs.slug }}.md"
-          requested_by="**Requested by:** ${{ inputs.requester_name }} (${{ inputs.requester_email }}, ${{ inputs.requester_phone }})"
+          branch="design/${{ steps.issue.outputs.slug }}"
+          doc="docs/proposals/${{ steps.issue.outputs.slug }}.md"
+          requested_by="**Requested by:** @${{ steps.issue.outputs.login }}"
 
           git fetch origin "$branch"
           git checkout "$branch"
@@ -137,10 +171,10 @@ jobs:
             git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
               add "$doc"
             git -c user.name="github-actions[bot]" -c user.email="github-actions[bot]@users.noreply.github.com" \
-              commit -q -m "Record requester info"
+              commit -q -m "Record requester identity"
             git push origin "$branch"
           elif [ ! -f "$doc" ]; then
-            echo "::warning::$doc not found on $branch -- Claude may not have written it where expected; requester info was not recorded in the doc."
+            echo "::warning::$doc not found on $branch -- Claude may not have written it where expected; requester identity was not recorded in the doc."
           fi
 
           pr_number=$(gh pr list --repo "${{ github.repository }}" --head "$branch" --json number --jq '.[0].number // empty')
@@ -152,3 +186,7 @@ jobs:
           if ! grep -qF "**Requested by:**" <<<"$body"; then
             gh pr edit "$pr_number" --repo "${{ github.repository }}" --body "$requested_by"$'\n\n'"$body"
           fi
+
+          gh issue comment "${{ steps.issue.outputs.number }}" --repo "${{ github.repository }}" \
+            --body "Design doc drafted: #$pr_number. Review and edit it there -- this issue is now closed."
+          gh issue close "${{ steps.issue.outputs.number }}" --repo "${{ github.repository }}"

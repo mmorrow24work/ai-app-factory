@@ -54,19 +54,16 @@ Placeholders with a built-in default (override with --set if needed):
 custom-script's ENTRY_POINT has no default and always needs --set — there is
 no defensible guess for a script's main file.
 
-Every project, of every type, also needs these three (logged in the new
-repo's README.md so it's clear who requested it):
-  --set REQUESTER_NAME=...
-  --set REQUESTER_EMAIL=...
-  --set REQUESTER_PHONE=...
+Every project, of every type, also needs this one (logged in the new repo's
+README.md so it's clear who requested it -- the requester's GitHub account,
+not a self-reported name/email/phone):
+  --set REQUESTER_GITHUB=...
 
 Example:
   factory-new.sh custom-script my-new-tool \
     --ask "A CLI that syncs X to Y" \
     --set ENTRY_POINT=run.py \
-    --set REQUESTER_NAME="Jane Doe" \
-    --set REQUESTER_EMAIL=jane@example.com \
-    --set REQUESTER_PHONE="+1 555 0100"
+    --set REQUESTER_GITHUB=janedoe
 EOF
 }
 
@@ -219,19 +216,17 @@ for key in "${NEEDED[@]}"; do
   fi
 done
 
-# REQUESTER_NAME/EMAIL/PHONE intentionally have no default either, for the
-# same reason ENTRY_POINT doesn't: every generated repo's README.md must
-# name a real, verifiable requester, not a guess. They live only inside
+# REQUESTER_GITHUB intentionally has no default either, for the same reason
+# ENTRY_POINT doesn't: every generated repo's README.md must name a real
+# requester, not a guess. It lives only inside
 # templates/_shared/REQUESTED_BY.md.tmpl (a partial, not a file the NEEDED
-# scan above reads directly), so they're checked here explicitly rather than
-# relying on that scan to find them.
-for key in REQUESTER_NAME REQUESTER_EMAIL REQUESTER_PHONE; do
-  if [ -n "${OVERRIDES[$key]+set}" ]; then
-    VALUES["$key"]="${OVERRIDES[$key]}"
-  else
-    MISSING+=("$key")
-  fi
-done
+# scan above reads directly), so it's checked here explicitly rather than
+# relying on that scan to find it.
+if [ -n "${OVERRIDES[REQUESTER_GITHUB]+set}" ]; then
+  VALUES["REQUESTER_GITHUB"]="${OVERRIDES[REQUESTER_GITHUB]}"
+else
+  MISSING+=("REQUESTER_GITHUB")
+fi
 
 if [ ${#MISSING[@]} -gt 0 ]; then
   if [ -t 0 ]; then
@@ -328,8 +323,8 @@ jq --arg repo "$OWNER/$REPO_NAME" \
    --arg createdAt "$(date -u +%F)" \
    --arg status "active" \
    --arg ask "$ASK" \
-   --arg requesterEmail "${VALUES[REQUESTER_EMAIL]}" \
-   '. + [{repo: $repo, type: $type, createdAt: $createdAt, status: $status, ask: $ask, requesterEmail: $requesterEmail}]' \
+   --arg requesterGithub "${VALUES[REQUESTER_GITHUB]}" \
+   '. + [{repo: $repo, type: $type, createdAt: $createdAt, status: $status, ask: $ask, requesterGithub: $requesterGithub}]' \
    "$PROJECTS_JSON" > "$TMP_PROJECTS"
 mv "$TMP_PROJECTS" "$PROJECTS_JSON"
 
