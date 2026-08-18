@@ -320,7 +320,7 @@ echo "Registering $OWNER/$REPO_NAME in $PROJECTS_JSON..."
 TMP_PROJECTS="$(mktemp "${TMPDIR:-/tmp}/projects.json.XXXXXX")"
 jq --arg repo "$OWNER/$REPO_NAME" \
    --arg type "$TYPE" \
-   --arg createdAt "$(date -u +%F)" \
+   --arg createdAt "$(date -u +%FT%TZ)" \
    --arg status "active" \
    --arg ask "$ASK" \
    --arg requesterGithub "${VALUES[REQUESTER_GITHUB]}" \

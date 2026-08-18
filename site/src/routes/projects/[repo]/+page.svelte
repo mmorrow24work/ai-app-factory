@@ -1,5 +1,5 @@
 <script>
-	import { elapsedSince } from '$lib/projects.js';
+	import { elapsedSince, formatCreatedAt } from '$lib/projects.js';
 	import TokenBurnChart from '$lib/TokenBurnChart.svelte';
 	import SessionStatusBadge from '$lib/SessionStatusBadge.svelte';
 	import CommitHeatmap from '$lib/CommitHeatmap.svelte';
@@ -40,7 +40,7 @@
 		<dd class="text-foreground capitalize">{project.status}</dd>
 
 		<dt class="text-muted-foreground">Created</dt>
-		<dd class="text-foreground">{project.createdAt}</dd>
+		<dd class="text-foreground">{formatCreatedAt(project.createdAt)}</dd>
 
 		<dt class="text-muted-foreground">Elapsed</dt>
 		<dd class="text-foreground">{elapsed || '…'}</dd>

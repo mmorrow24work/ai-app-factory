@@ -103,3 +103,22 @@ export function elapsedSince(createdAt, now = new Date()) {
 	const years = Math.floor(months / 12);
 	return `${years} year${years === 1 ? '' : 's'}`;
 }
+
+/**
+ * Formats `createdAt` as a plain UTC date for display -- handles both the full ISO 8601
+ * timestamp factory-new.sh writes today and the date-only ("YYYY-MM-DD") values older
+ * registry entries still carry (predating the fix for elapsedSince showing hours-since-
+ * midnight-UTC instead of hours-since-actual-creation on same-day projects). Forced to UTC
+ * rather than the visitor's local zone so this can't shift by a day near a timezone boundary.
+ *
+ * @param {string} createdAt
+ * @returns {string}
+ */
+export function formatCreatedAt(createdAt) {
+	return new Date(createdAt).toLocaleDateString(undefined, {
+		timeZone: 'UTC',
+		year: 'numeric',
+		month: 'short',
+		day: 'numeric'
+	});
+}
