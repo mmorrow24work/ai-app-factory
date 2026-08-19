@@ -4,7 +4,7 @@ Turns a vague project ask into a running unattended Claude Code build pipeline, 
 
 Two things live here:
 
-1. **Templates + CLI** (`templates/`, `scripts/`) — the repo-scaffolding boilerplate every one of these projects has needed by hand: a `claude-go`/`model:opus`/`lane:*` label taxonomy, a `.github/workflows/claude.yml` that runs `claude-code-action` per labeled issue, a `docs/journal.md` metrics log, secrets (`CLAUDE_CODE_OAUTH_TOKEN`, `GH_PAT`), and a `.env`. Packaged as `nautobot-app`, `netbox-plugin`, and `custom-script` project types.
+1. **Templates + CLI** (`templates/`, `scripts/`) — the repo-scaffolding boilerplate every one of these projects has needed by hand: a `claude-go`/`model:opus`/`model:haiku`/`lane:*` label taxonomy, a `.github/workflows/claude.yml` that runs `claude-code-action` per labeled issue, a `docs/journal.md` metrics log, secrets (`CLAUDE_CODE_OAUTH_TOKEN`, `GH_PAT`), and a `.env`. Packaged as `nautobot-app`, `netbox-plugin`, and `custom-script` project types.
 2. **The factory site** (`site/`) — a static SvelteKit dashboard (GitHub Pages) that takes a vague ask, drafts a design doc via Opus, and — once you approve it — generates the GitHub milestones/issues that drive the pipeline above. Every tracked project shows up in a grouped sidebar with its original ask, elapsed time, token-burn history (from `docs/journal.md`), latest Actions run status, and a commit heatmap.
 
 Live dashboard: **https://mmorrow24work.github.io/ai-app-factory/**
@@ -48,7 +48,7 @@ npm run lint       # prettier + eslint
 npm run check      # svelte-check
 ```
 
-The site is 100% static — no `.env` needed to run it locally. The one piece of client-side state is a GitHub PAT you paste into `/settings` (used only for `workflow_dispatch` calls to `api.github.com`, stored in `localStorage`) so the `/new` intake page can fire `draft-design-doc.yml`.
+The site is 100% static — no `.env` needed to run it locally, and no GitHub credential of any kind touches the browser. `/settings` only holds display preferences (theme, palette, typography), stored in `localStorage`. `/new` doesn't call any authenticated API either: it builds a pre-filled GitHub "New issue" link and hands off to GitHub's own submit button there — see DESIGN.md's "Write path" and "Resolved 2026-08-18" notes for why the original PAT-in-`localStorage` design was superseded before it shipped.
 
 ## Using the factory
 

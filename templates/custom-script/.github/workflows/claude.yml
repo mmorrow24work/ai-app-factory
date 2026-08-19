@@ -143,9 +143,15 @@ jobs:
             echo "comment_section=" >> "$GITHUB_OUTPUT"
           fi
 
-          # The `model:opus` label escalates off the Sonnet default.
+          # The `model:opus`/`model:haiku` labels move off the Sonnet default in either
+          # direction -- opus escalates for genuinely high-judgment issues, haiku steps down
+          # for purely mechanical ones (templating, formatting, status-only changes). opus
+          # wins if both are somehow present, since under-thinking a judgment call is more
+          # expensive to recover from than over-thinking a mechanical one.
           if printf '%s' "$labels" | grep -q 'model:opus'; then
             echo "model=claude-opus-5" >> "$GITHUB_OUTPUT"
+          elif printf '%s' "$labels" | grep -q 'model:haiku'; then
+            echo "model=claude-haiku-5" >> "$GITHUB_OUTPUT"
           else
             echo "model=claude-sonnet-5" >> "$GITHUB_OUTPUT"
           fi
@@ -196,6 +202,13 @@ jobs:
             answer a question mid-run, so asking will simply end the run with
             nothing done. Work with the tools you have.
 
+            Before doing any other exploration or writing any code, check
+            whether this issue depends on work from an earlier milestone that
+            is not merged yet. If so, stop immediately and post one comment
+            explaining the blocker -- do not spend turns building against
+            something that doesn't exist yet in the hope it lands first.
+            Checking this first is strictly cheaper than checking it last.
+
             Implement the issue per its acceptance criteria, touching only
             files named in the issue or in CLAUDE.md's repo map.
 
@@ -208,10 +221,9 @@ jobs:
             and should explain what you implemented, what you verified, and
             anything you could not verify here.
 
-            If the acceptance criteria are genuinely ambiguous, or the issue
-            depends on work from an earlier milestone that is not merged yet,
-            post one comment on the issue explaining the blocker instead of
-            guessing — then stop.
+            If the acceptance criteria are genuinely ambiguous, post one
+            comment on the issue explaining the blocker instead of guessing —
+            then stop.
           claude_args: >-
             --model ${{ steps.cfg.outputs.model }}
             --max-turns 200
