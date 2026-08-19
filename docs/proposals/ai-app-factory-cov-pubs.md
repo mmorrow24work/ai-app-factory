@@ -1,5 +1,7 @@
 # Design: ai-app-factory-cov-pubs
 
+**Requested by:** @mmorrow24work
+
 ## Problem
 
 Deciding which pub in Coventry to go to is a question with a lot of scattered inputs — is it near me, does it do food, has it got a garden, can I park, is it any good, and have I already been and thought it was rubbish? The public half of that (ratings, facilities, websites) is spread across Google, CAMRA's WhatPub, each pub's own site, and Facebook. The personal half — *my* rating, *when I last went* — exists nowhere at all, or in someone's notes app.
