@@ -14,9 +14,13 @@ export default {
 			strict: true
 		}),
 		paths: {
-			// Served from a project-pages URL (mmorrow24work.github.io/ai-app-factory/), not a
-			// custom domain, so every asset/link needs this subpath prefix.
-			base: process.env.NODE_ENV === 'production' ? '/ai-app-factory' : ''
+			// Served from the custom domain ai-app-factory.coldwire.uk (see the repo-root
+			// CNAME file and Settings -> Pages -> Custom domain), at the domain root -- not
+			// from the project-pages subpath (mmorrow24work.github.io/ai-app-factory/) this
+			// used to assume. A subpath base here would make every built asset URL wrong
+			// (/ai-app-factory/_app/... instead of /_app/...) once served from the domain
+			// root, breaking the page even after Pages itself is configured correctly.
+			base: ''
 		}
 	}
 };

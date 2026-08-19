@@ -7,7 +7,7 @@ Two things live here:
 1. **Templates + CLI** (`templates/`, `scripts/`) — the repo-scaffolding boilerplate every one of these projects has needed by hand: a `claude-go`/`model:opus`/`model:haiku`/`lane:*` label taxonomy, a `.github/workflows/claude.yml` that runs `claude-code-action` per labeled issue, a `docs/journal.md` metrics log, secrets (`CLAUDE_CODE_OAUTH_TOKEN`, `GH_PAT`), and a `.env`. Packaged as `nautobot-app`, `netbox-plugin`, and `custom-script` project types.
 2. **The factory site** (`site/`) — a static SvelteKit dashboard (GitHub Pages) that takes a vague ask, drafts a design doc via Opus, and — once you approve it — generates the GitHub milestones/issues that drive the pipeline above. Every tracked project shows up in a grouped sidebar with its original ask, elapsed time, token-burn history (from `docs/journal.md`), latest Actions run status, and a commit heatmap.
 
-Live dashboard: **https://mmorrow24work.github.io/ai-app-factory/**
+Live dashboard: **https://ai-app-factory.coldwire.uk**
 
 See `DESIGN.md` for the full design, `docs/adr/0001-design-to-issues-loop.md` for the ask → design doc → milestones/issues → `claude-go` loop step by step, and `docs/journal.md` for the build log of this repo's own (dogfooded) construction.
 
