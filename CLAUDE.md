@@ -21,7 +21,7 @@ Only `templates/`, `scripts/`, `site/`, `docs/adr/`, and root docs exist as dire
 ## Conventions
 
 - **Never edit `docs/journal.md` by hand or from within a PR branch.** It's appended by `.github/workflows/claude.yml` *after* your PR merges, via `.github/scripts/journal-entry.sh`. Editing it in your branch reintroduces the PR-conflict problem this repo's design doc explicitly calls out as a solved lesson from `uk-wealth-tracker` — every open PR would touch the same file and go conflicting.
-- **`templates/_shared/labels.json` is the single source of truth for the label taxonomy** (`claude-go`, `model:opus`, `lane:*`, plus the standard GitHub set). Per-type templates should reference it, not duplicate it.
+- **`templates/_shared/labels.json` is the single source of truth for the label taxonomy** (`claude-go`, `model:opus`, `model:haiku`, `lane:*`, plus the standard GitHub set). Per-type templates should reference it, not duplicate it.
 - **The site is static.** No server-side code, no secrets committed anywhere in `site/`. Anything needing a secret (drafting a design doc, generating issues) is a GitHub Actions workflow triggered via `workflow_dispatch`, never a Svelte server route.
 - **JS/TS in `site/`**: use plain `fetch` against the GitHub REST/GraphQL API and raw.githubusercontent.com for `docs/journal.md`/`projects.json` — no bespoke GitHub API client library.
 - Keep commit and PR scope to the files named in the issue or in the repo map above.
