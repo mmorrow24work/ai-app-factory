@@ -112,6 +112,15 @@ jobs:
           # ever self-dispatches in response to a real push to main from a real human merge --
           # there's no arbitrary-bot surface here to worry about.
           allowed_bots: "github-actions[bot]"
+          # Sonnet, not Opus: this step's whole job is mechanical -- parse an
+          # already-approved, already-reviewed design doc, infer the project type
+          # from a few keyword patterns, fill in a templated `factory-new.sh`
+          # command, and open a canned issue body. There's no design judgment left
+          # to make here (that already happened in draft-design-doc.yml, which
+          # keeps Opus). Downgraded 2026-08-19 during a token-efficiency pass --
+          # this workflow doesn't append to docs/journal.md (only claude.yml's
+          # issues do), so its Opus spend was previously invisible in the journal
+          # entirely; Sonnet is both cheaper and the right tool for the task.
           track_progress: false
           base_branch: main
           prompt: |
@@ -179,6 +188,6 @@ jobs:
             This is a provisioning plan for a human to execute, not code to write and not
             an issue to close in this repo -- there is no "Closes #N" line to add anywhere.
           claude_args: >-
-            --model claude-opus-5
+            --model claude-sonnet-5
             --max-turns 50
             --allowedTools "Bash(gh:*),Read,Glob,Grep"
