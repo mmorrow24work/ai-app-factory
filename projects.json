@@ -28,5 +28,13 @@
     "status": "active",
     "ask": "Create a simple hello-world site to test the ai-app-factory build process",
     "requesterGithub": "mmorrow2012"
+  },
+  {
+    "repo": "mmorrow24work/ai-app-factory-cov-pubs",
+    "type": "custom-script",
+    "createdAt": "2026-08-19T17:31:59Z",
+    "status": "active",
+    "ask": "List Coventry pubs with facilities, public and personal ratings, sortable by popularity and postcode proximity, shareable, at https://ai-app-factory-cov-pubs.coldwire.uk/",
+    "requesterGithub": "mmorrow24work"
   }
 ]
