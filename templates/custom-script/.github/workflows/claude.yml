@@ -212,14 +212,29 @@ jobs:
             Implement the issue per its acceptance criteria, touching only
             files named in the issue or in CLAUDE.md's repo map.
 
-            Run the checks listed in CLAUDE.md and fix until they are clean.
-            If a check's tooling is not installed on this runner, say so
-            plainly in the PR description rather than inventing a workaround.
+            Install whatever dependencies your implementation needs (pip and
+            npm are both available on this runner) and run the checks listed
+            in CLAUDE.md for real -- do not open a PR without having actually
+            run them. If some genuinely required tooling cannot be installed
+            here, say so plainly in the PR description rather than inventing
+            a workaround; that should be rare, since Python and Node are both
+            already set up.
+
+            If the test suite fails and you cannot fix it within this run, do
+            **not** open a PR. Instead:
+            1. Comment on the issue explaining what failed and why.
+            2. Apply the `pipeline:failed` label to it:
+               `gh issue edit ${{ steps.cfg.outputs.number }} --repo ${{ github.repository }} --add-label pipeline:failed`
+            3. Stop.
+            This pipeline auto-merges on green CI once a PR opens (see
+            .github/workflows/test.yml and the merge step below) — a PR that
+            only says "I couldn't verify this" would ship unverified code
+            instead of catching it, which is worse than no PR at all.
 
             Finish by opening a pull request against main. Its description
             must include the line "Closes #${{ steps.cfg.outputs.number }}",
-            and should explain what you implemented, what you verified, and
-            anything you could not verify here.
+            and should explain what you implemented and how you verified it
+            actually passes, not just that you wrote it.
 
             If the acceptance criteria are genuinely ambiguous, post one
             comment on the issue explaining the blocker instead of guessing —
@@ -227,7 +242,7 @@ jobs:
           claude_args: >-
             --model ${{ steps.cfg.outputs.model }}
             --max-turns 200
-            --allowedTools "Bash(gh:*),Bash(git:*),Bash(jq:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Edit,Read,Write,Glob,Grep"
+            --allowedTools "Bash(gh:*),Bash(git:*),Bash(jq:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Bash(pip:*),Bash(pip3:*),Bash(python:*),Bash(python3:*),Bash(pytest:*),Bash(npm:*),Bash(npx:*),Bash(node:*),Edit,Read,Write,Glob,Grep"
 
       # --- Journal capture -------------------------------------------------
       # Both steps run with always() so failed and turn-capped runs are

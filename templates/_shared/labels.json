@@ -5,6 +5,8 @@
   { "name": "lane:interactive", "color": "1D76DB", "description": "Drive this one yourself (Lane A) — excluded from the claude-go auto-trigger" },
   { "name": "lane:manual", "color": "B60205", "description": "Excluded outright from the unattended pipeline" },
   { "name": "lane:unattended", "color": "0E8A16", "description": "Explicitly marked as safe for the unattended pipeline (informational alongside claude-go)" },
+  { "name": "pipeline:failed", "color": "B60205", "description": "The agent's own test run failed and it stopped rather than open an unverified PR" },
+  { "name": "pipeline:stop", "color": "000000", "description": "Halts the auto-advance chain at the next check -- apply to any issue to pause the pipeline" },
   { "name": "bug", "color": "D73A4A", "description": "Something isn't working" },
   { "name": "enhancement", "color": "A2EEEF", "description": "New feature or request" },
   { "name": "documentation", "color": "0075CA", "description": "Documentation only" },

@@ -1,0 +1,55 @@
+name: CI
+
+# The gate that makes auto-merge (claude.yml's post-PR step) defensible rather than reckless
+# -- see UNATTENDED-BRIEF.md change 1 in ai-app-factory. Installs whichever ecosystem's
+# dependencies this project actually has (detected via manifest files, not assumed --
+# custom-script projects are language-agnostic by design), then runs the same
+# {{TEST_COMMAND}} CLAUDE.md's own Definition of Done already promises, so there is exactly
+# one place that defines what "tests pass" means for this project, not two. Python/pytest is
+# always set up unconditionally since {{TEST_COMMAND}} defaults to `pytest` for every
+# custom-script project unless overridden.
+#
+# Must run to completion at least once on a real PR before its check name ("test") can be
+# selected as a required status check in branch protection / a ruleset -- see factory-new.sh's
+# own comment on this for the bootstrapping order that implies.
+
+on:
+  pull_request:
+    branches: ["{{BASE_BRANCH}}"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: |
+          pip install pytest
+          [ -f requirements.txt ] && pip install -r requirements.txt
+          [ -f pyproject.toml ] && (pip install -e . || true)
+          true
+
+      - name: Set up Node
+        if: hashFiles('package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Node dependencies
+        if: hashFiles('package.json') != ''
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Run tests
+        run: "{{TEST_COMMAND}}"

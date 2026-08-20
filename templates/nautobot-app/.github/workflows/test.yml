@@ -1,0 +1,38 @@
+name: CI
+
+# The gate that makes auto-merge (claude.yml's post-PR step) defensible rather than reckless
+# -- see UNATTENDED-BRIEF.md change 1 in ai-app-factory. Install steps mirror claude.yml's own
+# Nautobot environment setup exactly, so "does it pass in CI" and "did the agent's own
+# in-turn verification pass" mean the same thing against the same installed package.
+#
+# Must run to completion at least once on a real PR before its check name ("test") can be
+# selected as a required status check in branch protection / a ruleset.
+
+on:
+  pull_request:
+    branches: ["{{BASE_BRANCH}}"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install app and dependencies
+        run: poetry install --no-interaction
+
+      - name: Run tests
+        run: poetry run nautobot-server test {{PYTHON_PACKAGE}}

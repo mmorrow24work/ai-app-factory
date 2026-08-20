@@ -241,15 +241,28 @@ jobs:
             files named in the issue or in CLAUDE.md's repo map. This is a
             Nautobot App: the Python package is {{PYTHON_PACKAGE}}.
 
-            Run the checks listed in CLAUDE.md and fix until they are clean.
-            If a check's tooling is not installed on this runner (early
-            milestones scaffold it, CI arrives in a later issue), say so
-            plainly in the PR description rather than inventing a workaround.
+            Run the checks listed in CLAUDE.md for real and fix until they are
+            clean -- do not open a PR without having actually run them.
+            Nautobot and Poetry are already installed on this runner. If some
+            genuinely required tooling cannot be installed here, say so
+            plainly in the PR description rather than inventing a workaround;
+            that should be rare.
+
+            If the test suite fails and you cannot fix it within this run, do
+            **not** open a PR. Instead:
+            1. Comment on the issue explaining what failed and why.
+            2. Apply the `pipeline:failed` label to it:
+               `gh issue edit ${{ steps.cfg.outputs.number }} --repo ${{ github.repository }} --add-label pipeline:failed`
+            3. Stop.
+            This pipeline auto-merges on green CI once a PR opens (see
+            .github/workflows/test.yml and the merge step below) — a PR that
+            only says "I couldn't verify this" would ship unverified code
+            instead of catching it, which is worse than no PR at all.
 
             Finish by opening a pull request against {{BASE_BRANCH}}. Its
             description must include the line "Closes #${{ steps.cfg.outputs.number }}",
-            and should explain what you implemented, what you verified, and
-            anything you could not verify here.
+            and should explain what you implemented and how you verified it
+            actually passes, not just that you wrote it.
 
             If the acceptance criteria are genuinely ambiguous, post one
             comment on the issue explaining the blocker instead of guessing —

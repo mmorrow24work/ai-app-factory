@@ -1,0 +1,46 @@
+name: CI
+
+# The gate that makes auto-merge (claude.yml's post-PR step) defensible rather than reckless
+# -- see UNATTENDED-BRIEF.md change 1 in ai-app-factory. Install steps mirror claude.yml's own
+# NetBox environment setup exactly, so "does it pass in CI" and "did the agent's own in-turn
+# verification pass" mean the same thing against the same installed package.
+#
+# Working directory for the test run itself (not something claude.yml's own setup needed,
+# since it never invokes manage.py directly, only installs) is NetBox's own repo layout --
+# manage.py lives at <netbox-clone-root>/netbox/manage.py. Not live-verified against a real
+# NetBox instance as part of building this; flagged as such rather than claimed proven.
+#
+# Must run to completion at least once on a real PR before its check name ("test") can be
+# selected as a required status check in branch protection / a ruleset.
+
+on:
+  pull_request:
+    branches: ["{{BASE_BRANCH}}"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Clone NetBox
+        run: git clone --depth 1 --branch "{{NETBOX_VERSION}}" https://github.com/netbox-community/netbox.git /tmp/netbox
+
+      - name: Install NetBox and plugin dependencies
+        run: |
+          pip install -r /tmp/netbox/requirements.txt
+          pip install -e .
+
+      - name: Run tests
+        working-directory: /tmp/netbox/netbox
+        run: python manage.py test {{PYTHON_PACKAGE}}
