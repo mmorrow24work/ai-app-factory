@@ -80,18 +80,49 @@ jobs:
                (`gh issue create`) with a short, concrete acceptance-criteria checklist in
                the body -- follow this repo's own CLAUDE.md (read it first) for
                conventions and definition of done, and match its level of detail and
-               phrasing. Apply the `claude-go` label (already present in this repo from
-               its template) to issues that are concrete and unambiguous enough for the
-               unattended pipeline to attempt; leave design-heavy or genuinely ambiguous
-               issues unlabeled or `lane:manual` instead -- do not label everything
-               `claude-go` by default. Attach each issue to its milestone with
+               phrasing. Attach each issue to its milestone with
                `--milestone "M<n>: <short title>"`. Skip creating an issue that already
                exists with the same title (idempotent re-run).
 
+               **Label every issue that is concrete and unambiguous enough for the
+               unattended pipeline `claude-go`, in every milestone -- not just the first
+               one.** `.github/workflows/advance.yml` (already present in this repo from its
+               template) sequences them in milestone-then-issue-number order and triggers
+               each one only once the previous merges, so pre-labeling a later milestone's
+               issues does not make them start early. The old convention of only labeling
+               the first milestone and leaving the rest for a human to label by hand is
+               exactly the "nothing advances the queue" failure this template now avoids --
+               see `UNATTENDED-BRIEF.md` in `ai-app-factory` if you want the full story.
+
+               Only leave an issue unlabeled if it is genuinely ambiguous or design-heavy
+               enough that a human should read it and decide before it becomes claude-go --
+               a real judgement call, not a default.
+
+               **Classify anything that isn't cleanly automatable into exactly one of these
+               three -- never leave it as a plain blocking `lane:manual` issue in the
+               middle of the sequence:**
+               - *Automatable with a secret or a script* (e.g. a scripted data migration or
+                 a config change achievable through NetBox's own management commands) --
+                 write it as a normal `claude-go` issue. It is not manual.
+               - *Genuinely human judgement* (e.g. deciding a production data model or
+                 approving a breaking schema change) -- label it `lane:manual`, but put it
+                 in the **highest-numbered milestone** (create one more milestone after the
+                 last content milestone if needed) so it sits at the *end* of the sequence,
+                 never blocking anything that comes after it.
+               - *One-time setup* (an external service credential, a production NetBox
+                 instance URL, anything that needed deciding once at approval time) -- do
+                 not create an issue for this at all; note it as a comment on the
+                 lowest-numbered milestone instead, since it belongs in the human's initial
+                 approval step, not mid-pipeline.
+
+               Rule for all three: **no `lane:manual` issue may block a later issue.** If
+               classifying something would create a blocker, reclassify it into one of the
+               three categories above instead of leaving it as-is.
+
             3. This is the only run of this workflow expected under normal use -- once
-               finished, THIS repo's own `claude.yml` picks up whichever issues were
-               labeled `claude-go` above and starts implementing them unattended, with no
-               further action needed here.
+               finished, THIS repo's own `claude.yml` picks up the first `claude-go` issue
+               (in milestone-then-number order) and `advance.yml` carries the rest forward
+               automatically as each one merges, with no further action needed here.
 
             There is no "Closes #N" line to add -- this isn't implementing an issue, it's
             creating them.

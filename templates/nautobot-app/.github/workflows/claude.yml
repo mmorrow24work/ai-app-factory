@@ -25,6 +25,14 @@ permissions:
   pull-requests: write
   id-token: write
 
+# UNATTENDED-BRIEF.md change 5: same concurrency group as advance.yml, so a manual
+# claude-go label applied while an advance.yml-triggered run is still in flight queues
+# behind it instead of racing it -- "one at a time" holds pipeline-wide, not just across
+# advance.yml's own triggers.
+concurrency:
+  group: pipeline-${{ github.repository }}
+  cancel-in-progress: false
+
 jobs:
   claude:
     if: >
@@ -271,6 +279,60 @@ jobs:
             --model ${{ steps.cfg.outputs.model }}
             --max-turns 200
             --allowedTools "Bash(gh:*),Bash(git:*),Bash(poetry:*),Bash(python:*),Bash(python3:*),Bash(pytest:*),Bash(nautobot-server:*),Bash(ruff:*),Bash(black:*),Bash(pre-commit:*),Bash(jq:*),Bash(mkdir:*),Bash(ls:*),Bash(cat:*),Edit,Read,Write,Glob,Grep"
+
+      # UNATTENDED-BRIEF.md change 6, the other half: the prompt above only labels
+      # pipeline:failed when Claude gets far enough to decide its own tests failed. A crash,
+      # timeout, or turn cap on the claude-code-action step itself leaves no PR and no
+      # comment -- advance.yml would then never fire (nothing merged) and never halt either
+      # (nothing labeled pipeline:failed), just a silent stall with no signal. This step
+      # closes that gap: any failure() of the action itself gets the same halt signal,
+      # regardless of whether Claude was still running when it happened.
+      - name: Flag a workflow-level failure
+        if: always() && steps.auth.outputs.authorized == 'true' && steps.claude.outcome == 'failure'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          num="${{ steps.cfg.outputs.number }}"
+          gh issue edit "$num" --repo "${{ github.repository }}" --add-label pipeline:failed
+          gh issue comment "$num" --repo "${{ github.repository }}" \
+            --body "This run's claude-code-action step failed outright (crash, timeout, or turn cap) rather than Claude self-reporting a test failure. Run log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      # UNATTENDED-BRIEF.md change 3. Deliberately its own step, not something left to the
+      # agent's own turn to remember: the claude-code-action step above has no
+      # continue-on-error, so GitHub Actions already skips this step automatically if that one
+      # failed -- "stop on failure, don't cascade" (change 6) for free, no extra logic needed
+      # here. Finds the PR via the same "linked:issue-N" search journal-entry.sh already uses
+      # below, rather than guessing claude-code-action's internal branch-naming convention.
+      - name: Enable auto-merge on the opened PR
+        if: steps.auth.outputs.authorized == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          num="${{ steps.cfg.outputs.number }}"
+          pr=$(gh pr list --repo "${{ github.repository }}" --search "linked:issue-$num" --json number --jq '.[0].number // empty')
+          if [ -z "$pr" ]; then
+            echo "No PR found linked to issue #$num -- the agent may not have opened one (blocker comment, or a pipeline:failed stop). Nothing to auto-merge."
+            exit 0
+          fi
+
+          # --auto returns 422 if the PR doesn't yet meet its merge requirements (e.g. a
+          # required check hasn't reported in yet) -- retry with backoff rather than treating
+          # that as a hard failure, per this change's own documented gotcha.
+          attempt=0
+          max_attempts=5
+          until gh pr merge "$pr" --repo "${{ github.repository }}" --auto --squash --delete-branch; do
+            attempt=$((attempt + 1))
+            if [ "$attempt" -ge "$max_attempts" ]; then
+              echo "::warning::Could not enable auto-merge on PR #$pr after $max_attempts attempts -- it will need a manual 'gh pr merge --auto' once its checks are ready."
+              exit 0
+            fi
+            sleep $((attempt * 10))
+          done
+          echo "Auto-merge enabled on PR #$pr -- it will merge automatically once required checks pass."
 
       # --- Journal capture -------------------------------------------------
       # Both steps run with always() so failed and turn-capped runs are

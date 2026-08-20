@@ -1,0 +1,118 @@
+name: advance
+
+# UNATTENDED-BRIEF.md changes 4, 6, and 7 -- auto-advance, stop-on-failure, and the runaway
+# guards, combined here since they're all the same decision ("should the next issue start")
+# made in one place rather than scattered across separate workflows that could disagree.
+#
+# Fires on `pull_request: closed`, filtered to merged == true -- an abandoned/rejected PR
+# must not advance the queue, only a real merge should. Re-fires claude.yml via
+# workflow_dispatch (route A from the brief's own table): GITHUB_TOKEN can start a
+# workflow_dispatch run even though GitHub's anti-self-trigger protection blocks it from
+# starting a run via labeling -- no PAT needed for this step, only for opening PRs (already
+# handled by claude.yml's own GH_PAT preference).
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+concurrency:
+  group: pipeline-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  advance:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Decide whether to advance, halt, or finish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUDGET_CEILING_USD: ${{ vars.BUDGET_CEILING_USD }}
+        run: |
+          set -euo pipefail
+
+          # Change 7: a pipeline:stop label anywhere in this repo's open issues halts the
+          # chain at the next check -- i.e. right here, before anything else is even
+          # evaluated. Deliberately checked first and repo-wide, not milestone-scoped.
+          stopped=$(gh issue list --repo "${{ github.repository }}" --label pipeline:stop --state open --json number --jq 'length')
+          if [ "$stopped" -gt 0 ]; then
+            echo "pipeline:stop is set on at least one open issue -- halting the chain here."
+            exit 0
+          fi
+
+          # Change 6: a pipeline:failed issue blocks further advancement until a human
+          # clears it (removes the label or closes the issue). A pipeline that keeps going
+          # after a failure produces a pile of broken PRs on top of a broken foundation.
+          failed=$(gh issue list --repo "${{ github.repository }}" --label pipeline:failed --state open --json number --jq 'length')
+          if [ "$failed" -gt 0 ]; then
+            echo "pipeline:failed is set on at least one open issue -- halting the chain until a human clears it."
+            exit 0
+          fi
+
+          # Change 7: budget ceiling, read from the journal's own running cost total -- the
+          # same **Estimated Cost:** $N.NNNN figures journal-entry.sh already writes, summed
+          # with the identical regex its own velocity-table recompute uses, so this can never
+          # disagree with what the journal itself reports.
+          if [ -n "${BUDGET_CEILING_USD:-}" ] && [ -f docs/journal.md ]; then
+            spent=$(grep -oE '\*\*Estimated Cost:\*\* \$[0-9.]+' docs/journal.md \
+              | grep -oE '[0-9.]+' | awk '{s+=$1} END {printf "%.4f", s+0}')
+            over=$(awk -v s="$spent" -v c="$BUDGET_CEILING_USD" 'BEGIN { print (s >= c) ? 1 : 0 }')
+            if [ "$over" = "1" ]; then
+              echo "Spent \$$spent, at or over the \$$BUDGET_CEILING_USD ceiling -- halting the chain."
+              gh issue create --repo "${{ github.repository }}" \
+                --title "Pipeline halted: budget ceiling reached" \
+                --body "Running cost per docs/journal.md is \$$spent, at or over the \$$BUDGET_CEILING_USD ceiling set at provisioning time. Raise the \`BUDGET_CEILING_USD\` repo variable and re-trigger manually to continue, or leave it here." \
+                --label pipeline:stop
+              exit 0
+            fi
+          fi
+
+          # Milestone-then-issue-number order -- M2 must not start before M1 is done.
+          # Issues with no milestone (shouldn't happen once seeded, but not fatal if it does)
+          # sort last rather than crash the sort.
+          next=$(gh issue list --repo "${{ github.repository }}" --label claude-go --state open \
+            --json number,milestone --jq '
+              map({number, m: ((.milestone.title // "M999") | capture("^M(?<n>[0-9]+)").n | tonumber)})
+              | sort_by(.m, .number)
+              | .[0].number // empty
+            ')
+
+          if [ -z "$next" ]; then
+            open_total=$(gh issue list --repo "${{ github.repository }}" --state open --json number --jq 'length')
+            if [ "$open_total" -eq 0 ]; then
+              gh issue create --repo "${{ github.repository }}" \
+                --title "Pipeline complete" \
+                --body "No open issues remain. Every claude-go milestone has been implemented, reviewed, and merged."
+            else
+              echo "No open claude-go issues left, but $open_total other open issue(s) remain (e.g. lane:manual) -- not posting a completion summary yet."
+            fi
+            exit 0
+          fi
+
+          # Change 7: hard cap on consecutive claude-go issues per milestone -- a defensive
+          # guard against a design doc that generated an unreasonable number of issues in one
+          # milestone, not an expected path in normal operation.
+          milestone_title=$(gh issue view "$next" --repo "${{ github.repository }}" --json milestone --jq '.milestone.title // empty')
+          if [ -n "$milestone_title" ]; then
+            in_milestone=$(gh issue list --repo "${{ github.repository }}" --label claude-go --state all \
+              --search "milestone:\"$milestone_title\"" --json number --jq 'length')
+            if [ "$in_milestone" -gt 25 ]; then
+              echo "Milestone '$milestone_title' has more than 25 claude-go issues -- halting as a runaway guard."
+              gh issue create --repo "${{ github.repository }}" \
+                --title "Pipeline halted: runaway guard on $milestone_title" \
+                --body "More than 25 claude-go issues found in \"$milestone_title\". This is almost certainly not intended -- check the design doc/seeding before clearing pipeline:stop and continuing." \
+                --label pipeline:stop
+              exit 0
+            fi
+          fi
+
+          echo "Advancing to issue #$next"
+          gh workflow run claude.yml --repo "${{ github.repository }}" -f issue_number="$next"

@@ -41,6 +41,25 @@ Options:
   --author NAME         Sets {{AUTHOR_NAME}} (default: git config user.name, else owner)
   --set KEY=VALUE       Set an arbitrary template placeholder (repeatable),
                          e.g. --set NAUTOBOT_VERSION=^3.0.0
+  --enable-pages        Commit templates/_shared/pages-deploy.yml.tmpl into the
+                         scaffold and turn on GitHub Pages (build_type=workflow)
+                         on the new repo. Front-loaded here (UNATTENDED-BRIEF.md
+                         change 9) because GH_PAT deliberately cannot push
+                         workflow files -- this runs with the human's own gh
+                         auth, before any GH_PAT is even minted, so seeded
+                         issues never need a mid-pipeline "add the Pages
+                         workflow" step.
+  --set CUSTOM_DOMAIN=DOMAIN
+                         Only meaningful with --enable-pages: writes a CNAME
+                         file into the scaffold and sets it as the repo's Pages
+                         custom domain. DNS itself (pointing the domain at
+                         GitHub) is still the human's job -- this only does the
+                         GitHub-side half.
+  --set BUDGET_CEILING_USD=N
+                         Sets the BUDGET_CEILING_USD repo variable, read by
+                         advance.yml's budget-ceiling check (UNATTENDED-BRIEF.md
+                         change 7) against docs/journal.md's running cost total.
+                         Omit to run with no budget ceiling.
   --dry-run             Build the local scaffold only; skip repo creation,
                          label application, and the projects.json update.
                          Prints the scaffold directory and leaves it in place.
@@ -108,6 +127,7 @@ DESCRIPTION=""
 BRANCH="main"
 AUTHOR=""
 DRY_RUN=false
+ENABLE_PAGES=false
 declare -A OVERRIDES
 
 while [ $# -gt 0 ]; do
@@ -127,6 +147,7 @@ while [ $# -gt 0 ]; do
       shift 2
       ;;
     --dry-run) DRY_RUN=true; shift ;;
+    --enable-pages) ENABLE_PAGES=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "unknown option: $1" ;;
   esac
@@ -295,6 +316,18 @@ for src in "${SRC_FILES[@]}"; do
   chmod --reference="$src" "$dest"
 done
 
+if [ "$ENABLE_PAGES" = true ]; then
+  PAGES_TMPL="$SHARED_DIR/pages-deploy.yml.tmpl"
+  [ -f "$PAGES_TMPL" ] || die "--enable-pages given but $PAGES_TMPL is missing"
+  mkdir -p "$SCAFFOLD_DIR/.github/workflows"
+  render_content "$PAGES_TMPL" > "$SCAFFOLD_DIR/.github/workflows/pages-deploy.yml"
+  if [ -n "${OVERRIDES[CUSTOM_DOMAIN]+set}" ]; then
+    printf '%s\n' "${OVERRIDES[CUSTOM_DOMAIN]}" > "$SCAFFOLD_DIR/CNAME"
+  fi
+elif [ -n "${OVERRIDES[CUSTOM_DOMAIN]+set}" ]; then
+  die "--set CUSTOM_DOMAIN=... requires --enable-pages"
+fi
+
 echo "Scaffold built at: $SCAFFOLD_DIR"
 
 if [ "$DRY_RUN" = true ]; then
@@ -311,6 +344,47 @@ git -C "$SCAFFOLD_DIR" -c user.name="${AUTHOR}" -c user.email="noreply@users.nor
 echo "Creating $OWNER/$REPO_NAME on GitHub..."
 gh repo create "$OWNER/$REPO_NAME" "$VISIBILITY" --source="$SCAFFOLD_DIR" --push
 
+# UNATTENDED-BRIEF.md change 3, front-loaded per change 9: one-time repo settings, scripted
+# here rather than left for a human to click, so they're not a step "unattended" secretly
+# depends on someone remembering. Best-effort (|| warn, don't abort) rather than fatal --
+# found the hard way on 2026-08-19 that a single failed gh api call inside this function,
+# under set -e, aborted the whole script before it ever reached the projects.json
+# registration below, silently leaving a real repo untracked by the dashboard.
+echo "Enabling auto-merge on $OWNER/$REPO_NAME..."
+gh api "repos/$OWNER/$REPO_NAME" -X PATCH -F allow_auto_merge=true \
+  || echo "WARNING: failed to enable auto-merge on $OWNER/$REPO_NAME -- enable it by hand: Settings -> General -> Pull Requests -> Allow auto-merge" >&2
+
+echo "Requiring the test.yml CI check on $BRANCH before merge..."
+# The check name ("test") only needs to match test.yml's job id -- GitHub's branch-protection
+# API accepts a required-check context that has never actually run yet (the "must run once
+# before it's selectable" constraint is a Settings-UI-picker convenience, not an API
+# requirement), so this can run immediately after repo creation rather than waiting for a
+# first PR.
+jq -n '{
+  required_status_checks: { strict: false, contexts: ["test"] },
+  enforce_admins: false,
+  required_pull_request_reviews: null,
+  restrictions: null
+}' | gh api "repos/$OWNER/$REPO_NAME/branches/$BRANCH/protection" -X PUT --input - > /dev/null \
+  || echo "WARNING: failed to set branch protection on $OWNER/$REPO_NAME's $BRANCH branch -- the test.yml check ('test') won't be required until this is set by hand (Settings -> Branches), so auto-merge could merge before CI has actually run until then" >&2
+
+if [ "$ENABLE_PAGES" = true ]; then
+  echo "Enabling GitHub Pages (build_type=workflow) on $OWNER/$REPO_NAME..."
+  gh api "repos/$OWNER/$REPO_NAME/pages" -X POST -F build_type=workflow \
+    || echo "WARNING: failed to enable Pages on $OWNER/$REPO_NAME -- enable it by hand: Settings -> Pages -> Build and deployment -> GitHub Actions" >&2
+  if [ -n "${OVERRIDES[CUSTOM_DOMAIN]+set}" ]; then
+    echo "Setting Pages custom domain to ${OVERRIDES[CUSTOM_DOMAIN]}..."
+    gh api "repos/$OWNER/$REPO_NAME/pages" -X PUT -f "cname=${OVERRIDES[CUSTOM_DOMAIN]}" \
+      || echo "WARNING: failed to set the Pages custom domain on $OWNER/$REPO_NAME -- set it by hand: Settings -> Pages -> Custom domain. DNS still needs pointing at GitHub either way." >&2
+  fi
+fi
+
+if [ -n "${OVERRIDES[BUDGET_CEILING_USD]+set}" ]; then
+  echo "Setting BUDGET_CEILING_USD=${OVERRIDES[BUDGET_CEILING_USD]} on $OWNER/$REPO_NAME..."
+  gh variable set BUDGET_CEILING_USD --repo "$OWNER/$REPO_NAME" --body "${OVERRIDES[BUDGET_CEILING_USD]}" \
+    || echo "WARNING: failed to set BUDGET_CEILING_USD on $OWNER/$REPO_NAME -- advance.yml will run with no budget ceiling until this is set by hand (Settings -> Secrets and variables -> Actions -> Variables)" >&2
+fi
+
 LABELS_JSON="$SHARED_DIR/labels.json"
 if [ -f "$LABELS_JSON" ]; then
   echo "Applying labels from $LABELS_JSON..."
@@ -318,7 +392,8 @@ if [ -f "$LABELS_JSON" ]; then
     name=$(jq -r '.name' <<<"$label")
     color=$(jq -r '.color' <<<"$label")
     desc=$(jq -r '.description' <<<"$label")
-    gh label create "$name" --repo "$OWNER/$REPO_NAME" --color "$color" --description "$desc" --force
+    gh label create "$name" --repo "$OWNER/$REPO_NAME" --color "$color" --description "$desc" --force \
+      || echo "WARNING: failed to create label '$name' on $OWNER/$REPO_NAME -- continuing with the rest (found the hard way on 2026-08-19: an over-length description here used to abort this whole script before projects.json registration ran)" >&2
   done
 else
   echo "WARNING: $LABELS_JSON not found — skipping label application" >&2

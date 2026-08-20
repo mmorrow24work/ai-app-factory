@@ -1,0 +1,66 @@
+name: pages-deploy
+
+# Added at provisioning time by factory-new.sh --enable-pages (UNATTENDED-BRIEF.md change 9:
+# one-time setup front-loaded at approval time, not a mid-pipeline lane:manual issue). Uses
+# GitHub's own actions/deploy-pages flow (build_type=workflow, set on the repo by
+# factory-new.sh via `gh api .../pages`), not a gh-pages branch push -- no extra token needed
+# beyond the default GITHUB_TOKEN's pages:write permission.
+#
+# Deliberately generic: publishes the repo root as-is if there's no build step, or runs
+# `npm run build` and publishes ./dist or ./build if a package.json declares one. A project
+# with different build output should override this file directly -- it isn't re-rendered by
+# the factory after scaffolding.
+
+on:
+  push:
+    branches: ["{{BASE_BRANCH}}"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        if: hashFiles('package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Build
+        id: build
+        run: |
+          set -euo pipefail
+          if [ -f package.json ]; then
+            if [ -f package-lock.json ]; then npm ci; else npm install; fi
+            if node -e "process.exit(require('./package.json').scripts && require('./package.json').scripts.build ? 0 : 1)"; then
+              npm run build
+            fi
+          fi
+          out="."
+          for candidate in dist build public; do
+            [ -d "$candidate" ] && { out="$candidate"; break; }
+          done
+          echo "dir=$out" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ steps.build.outputs.dir }}
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
